@@ -1,6 +1,6 @@
 # Dontype (丝语)
 
-**English** · [中文](README.zh.md)
+**English** · [中文](README.zh.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
 Privacy-first voice dictation + read-aloud for Mac, by **Easylii**.
 Western brand **Dontype** (don't type — just talk), Chinese **丝语**. Double-tap **Control** to start talking, tap to stop — local transcription, AI cleanup, auto-paste at the cursor. Everything runs on-device; your voice never leaves your Mac.

@@ -1,0 +1,135 @@
+# Dontype (丝语)
+
+[English](README.md) · [中文](README.zh.md) · [日本語](README.ja.md) · **한국어** · [Español](README.es.md) · [Français](README.fr.md)
+
+Mac를 위한 프라이버시 우선 음성 받아쓰기 + 소리 내어 읽기, 제작 **Easylii**.
+서구권 브랜드는 **Dontype**(don't type — 타이핑하지 말고 그냥 말하세요), 중국어는 **丝语**. **Control**을 두 번 눌러 말하기를 시작하고, 한 번 눌러 멈춥니다 — 로컬 음성 인식, AI 정리, 커서 위치에 자동 붙여넣기. 모든 처리가 기기 안에서 이루어지며, 당신의 음성은 Mac을 벗어나지 않습니다.
+
+## 주요 특징
+
+- **2-in-1: 음성 ⇄ 텍스트.** 하나의 도구로 양방향을 모두 지원합니다 — 받아쓰기(음성 → 텍스트) **그리고** 선택한 텍스트를 소리 내어 읽기(텍스트 → 음성). 대부분의 도구는 한 방향만 지원합니다.
+- **종량제 API도, 추가 구독도 없음.** 음성 인식은 완전히 **로컬**에서 실행됩니다(무료, 오프라인, 대역폭 불필요). AI 정리는 **이미 가지고 있는 Claude Code / Codex**를 통해 그들의 CLI로 실행됩니다 — 별도의 Anthropic API 키도, 토큰당 API 과금도 없습니다. 추가로 낼 비용이 없으며, 둘 중 어느 것도 없으면 원본 받아쓰기 결과를 그대로 출력합니다(여전히 무료).
+- **5칸 클립보드 기록.** 모든 받아쓰기 결과와 모든 수동 복사는 5개 항목의 기록으로 흘러 들어갑니다(중복 제거, 출처 태그 지정) — 아무 항목이나 클릭하면 다시 복사됩니다. 메모리에만 저장되며, 민감한 클립은 건너뜁니다.
+
+## 작동 방식
+
+```
+Double-tap Control to record (tap to stop / Esc = stop without paste)
+  → whisper.cpp local recognition (offline; falls back to Apple speech if no model)
+  → AI cleanup (Claude API / Claude Code / Codex, auto-fallback; rewrites into fluent sentences)
+  → floating result window + copy button
+  → auto-paste into the field you were in
+```
+
+## 데모
+
+**음성 → 텍스트** — Control을 두 번 누르고, 말하면, 텍스트가 커서 위치에 붙여넣어집니다:
+
+![음성을 텍스트로 변환하는 데모](design/demo-stt.svg)
+
+**텍스트 → 음성** — 텍스트를 선택하고, 오른쪽 ⌘를 두 번 누르면, 음성이 그것을 소리 내어 읽어줍니다:
+
+![텍스트를 음성으로 변환하는 데모](design/demo-tts.svg)
+
+**인터랙티브 설치 안내** — 첫 실행 경험 전체를 보려면 브라우저에서 [`design/dontype-install-flow.html`](design/dontype-install-flow.html)를 여세요(8개 화면: 환영 → 프라이버시 동의 → 권한 → 모델 → 단축키 → 소리 내어 읽기 → AI → 완료).
+
+> 위의 두 데모는 애니메이션 SVG입니다(README 안에서 재생됩니다). 실제 모습이 필요하다면 `Cmd+Shift+5` → Gifski / Kap으로 앱의 짧은 GIF를 녹화하세요. 저장소가 공개되면 GitHub Pages를 통해 HTML 안내도 호스팅할 수 있습니다.
+
+## 지원 인식 언어
+
+> **핵심: "언어별 인식 팩"이라는 것은 없습니다.** 하나의 whisper 모델이 약 99개 언어를 모두 지원합니다 — 언어를 설정하거나 자동 감지를 사용하기만 하면 됩니다. 언어마다 여러 모델을 다운로드할 일은 결코 없습니다.
+
+**기본값은 자동 감지**(`recognitionLang: auto`) — 당신이 무슨 언어로 말하는지 알아서 파악하므로 수동으로 고를 필요가 없습니다. 인식 언어 드롭다운에는 수동 고정용으로 **주력(featured)** 언어만 나열됩니다:
+
+| 등급 | 언어 | 비고 |
+|------|-----------|-------|
+| **주력**(드롭다운에 포함, 공식 지원) | English · Chinese (Mandarin) · 日本語 · 한국어 · Spanish · French · German · Italian · Portuguese | turbo ≈ full large-v3 수준; 안심하고 홍보 가능 |
+| 작동하나 주의 필요 | Cantonese · Thai · Vietnamese 등 | turbo는 광둥어/태국어에서 눈에 띄게 품질이 떨어짐 → `whisperModel`을 `large-v3`로 전환; 드롭다운에는 없지만 자동 감지로는 여전히 인식됨 |
+| 약함(홍보 안 함) | 저자원(low-resource) 언어 | 오류율이 높고 환각(hallucination)이 발생하기 쉬움 |
+
+- **turbo vs large-v3**: 기본값 `large-v3-turbo`는 빠르고 고자원 언어에서는 풀(full) 품질에 가깝습니다; 저자원 언어(특히 광둥어, 태국어)에서는 품질이 떨어집니다. 다국어 정확도를 높이려면 `whisperModel`을 `large-v3`로 전환하세요.
+- **인터페이스 언어**(메뉴 / 마법사)는 음성 인식과 별개입니다 — 현재는 중국어 / 영어이며, 그 외 언어는 영어로 대체됩니다. 일본어 / 한국어 UI 등은 시장이 번역 작업을 정당화할 때 점진적으로 추가할 수 있습니다.
+
+## 설치
+
+**배포용 설치(권장)**: `./make-dmg.sh`는 `Dontype.dmg`를 빌드합니다(`install.command` / `PRIVACY.md` / 설치 안내를 번들로 포함). 설치하려면 DMG 안의 **install.command**를 우클릭 → "열기"; 스크립트가 `/Applications`로 복사하고, 격리(quarantine)를 제거하며(이후에는 더블클릭으로 실행 가능), 기본 설정을 작성한 뒤 실행합니다.
+
+**첫 실행 = 페이지 단위 설정 마법사**: 환영 → **프라이버시 정책(계속하려면 반드시 동의)** → 권한 → 모델 → 단축키 → 소리 내어 읽기 → AI → 완료. 그 이후로는 메뉴 막대의 "설정"이 **단일 창 설정 패널**을 엽니다(더 이상 페이지 단위 흐름이 아닙니다).
+
+**로컬 개발**:
+
+```bash
+cd ~/Documents/SiYu
+./build-app.sh          # build + bundle + sign → SiYu.app
+open SiYu.app
+```
+
+> 참고: 앱 번들은 내부적으로 여전히 `SiYu.app`이라는 이름이지만, Finder / 권한 / 메뉴에는 `Info.plist` + `Resources/*.lproj` 현지화를 통해 브랜드 **Dontype**(영어 시스템) / **丝语**(중국어 시스템)로 표시됩니다.
+> 서명 인증서는 `.cert/`에 있습니다(**저장소에 포함되지 않음** — 별도로 백업하세요). 고정된 인증서는 재빌드 전반에 걸쳐 손쉬운 사용(Accessibility) 및 기타 TCC 권한을 유효하게 유지해 줍니다.
+
+실행 후 메뉴 막대에 **물방울(bubble) 로고**가 나타납니다; 녹음 중에는 빨간색으로, 정리 중에는 주황색으로 채워집니다.
+
+## 클립보드 기록(최대 5개)
+
+메뉴 막대의 "음성 입력" 섹션에는 **클립보드 기록**이 있습니다 — 최대 5개 항목이며, 클릭하면 클립보드로 다시 복사됩니다:
+- 두 가지 출처를 아이콘으로 표시: 🌊 이 앱의 받아쓰기 결과 / 📋 직접 복사한 것.
+- **자동 중복 제거**: 동일한 내용은 하나만 유지되며 맨 위로 이동합니다.
+- **메모리에만 저장되고, 디스크에 기록되지 않으며, 종료 시 비워집니다**; 비밀번호 관리자가 민감한 항목으로 표시한 클립보드 항목은 **건너뜁니다**.
+
+## 선택한 텍스트를 소리 내어 읽기(역방향)
+
+**어떤 앱에서든** 텍스트를 선택(또는 커서를 시작 위치에 둠) → **오른쪽 ⌘를 두 번 누름** → 프리미엄(Premium) 음성이 **거기서부터 현재 텍스트 블록 끝까지** 읽어줍니다(오프라인, 무료). 읽는 동안: **오른쪽 ⌘를 한 번 누르면** 일시정지/재개, **Esc**로 중지.
+- 아래로 읽기: 먼저 손쉬운 사용(Accessibility)을 통해 "포커스된 필드의 전체 텍스트 + 선택 위치"를 가져오려 시도하여 선택 시작점부터 해당 텍스트 블록의 끝까지 읽습니다; 가져올 수 없으면(일부 웹 페이지 / 터미널 / Electron) **선택된 구간만 읽는** 방식으로 대체됩니다.
+- 선택 영역 대체 처리: 손쉬운 사용으로 선택을 가져올 수 없을 때는 Cmd+C를 합성해 클립보드를 읽은 뒤 그것을 **복원**합니다.
+- 설정: 설정 패널의 "⑧ 선택 영역 소리 내어 읽기 → 구성"에서 음성 / 속도 / 트리거 키 / 미리듣기를 설정합니다; 프리미엄 음성이 없다면 시스템 설정에서 다운로드할 수 있는 진입점이 제공됩니다.
+
+## 프라이버시
+
+당신의 음성은 기기를 벗어나지 않습니다 — 수집 제로, 추적 제로, 계정 없음, 텔레메트리 없음. 선택적 AI 정리는 **당신이 직접 설정한** Claude/Codex 계정으로 **텍스트만**(오디오가 아님) 전송합니다. 전체 정책은 [`PRIVACY.md`](PRIVACY.md)에 있습니다(이중 언어, GDPR / CCPA 수준). 첫 실행에는 프라이버시 동의 관문이 있습니다.
+
+## 구성
+
+AI 정리 백엔드는 우선순위에 따라 자동 선택됩니다: `Claude API (fastest) → Claude Code → Codex → raw passthrough`, 실패 시 자동으로 대체됩니다. 가장 빠른 API를 쓰려면: `ANTHROPIC_API_KEY`를 설정하거나, `~/.config/siyu/config.json`에 `apiKey`를 넣으세요. 키가 없어도 작동합니다: Claude Code / Codex가 있으면 당신의 구독을 사용하고, 아무것도 없으면 원본 받아쓰기 결과를 출력합니다.
+
+`~/.config/siyu/config.json` 필드:
+
+| 필드 | 의미 | 기본값 |
+|-------|---------|---------|
+| `apiKey` | Anthropic API 키 | 비어 있음(환경 변수로 대체됨) |
+| `model` | API 정리에 사용할 모델 | `claude-haiku-4-5-20251001` |
+| `cleanup` | AI 정리 활성화(군더더기 말이 감지될 때만 자동 실행) | `true` |
+| `autoPaste` | 결과 후 커서 위치에 자동 붙여넣기 | `true` |
+| `whisperModel` | whisper 모델 id(`large-v3-turbo` / `large-v3` / `medium` / `small`) | `large-v3-turbo` |
+| `recognitionLang` | 인식 언어(`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr` / `de` / `it` / `pt`) | `auto` |
+| `uiLang` | 인터페이스 언어(`auto` / `zh` / `en`) | `auto` |
+| `readKey` | 소리 내어 읽기 트리거 키(`control`/`fn`/`rightCommand`/`rightOption`/`option`) | `rightCommand` |
+| `readVoice` | 소리 내어 읽기 음성 id(비어 있으면 텍스트 언어에 맞춰 프리미엄 음성 자동 선택) | 비어 있음 |
+| `readRate` | 소리 내어 읽기 속도 0…1 | `0.5` |
+
+## 구조
+
+| 파일 | 역할 |
+|------|----------------|
+| `AppDelegate.swift` | 메뉴 막대, 흐름 조율, 클립보드 기록, 권한 |
+| `HotkeyMonitor.swift` | 전역 더블탭 수정자 키 감지(CGEventTap) |
+| `Dictation.swift` | 녹음 + 인식(whisper 우선, Apple 대체) |
+| `Whisper.swift` | whisper.cpp 백엔드: 모델 디렉터리, 인식 언어, 상주 서버 |
+| `Cleaner.swift` | AI 정리(API / Claude Code / Codex 대체 체인; 문장으로 다시 씀) |
+| `ModelDownloader.swift` | whisper 모델 다운로드(마법사로 진행 상황 콜백) |
+| `TextGrabber.swift` | 선택한 텍스트 가져오기(Accessibility 직접 + 클립보드를 복원하는 Cmd+C 대체) |
+| `Speaker.swift` | 소리 내어 읽기 엔진(AVSpeechSynthesizer + 프리미엄 음성, 언어별 자동 선택) |
+| `HotkeySetup.swift` / `ReadSetup.swift` | 시작/멈춤 단축키, 소리 내어 읽기 설정(더블탭 테스트로 확인) |
+| `Onboarding.swift` | 첫 실행 **페이지 단위 마법사**(프라이버시 동의 포함) + 메뉴 **설정 패널**(두 모드, 하나의 클래스) |
+| `RecallStore.swift` | 클립보드 기록(최대 5개, 중복 제거, 메모리 저장, 민감한 클립 건너뜀) |
+| `IconRenderer.swift` | 메뉴 막대 아이콘 + 마이크 출처 아이콘(런타임에 그려지는 SVG 경로) |
+| `HUD.swift` | 떠 있는 결과 창 / 드래그 가능한 알약(pill) / 소리 내어 읽기 파형 |
+| `Paster.swift` | 클립보드 + 합성 Cmd+V |
+| `L.swift` | UI 현지화(zh/en) · `Config.swift` 런타임 구성 |
+
+`design/dontype-install-flow.html`은 인터랙티브 설치 흐름 프로토타입입니다(데모용).
+
+## 로드맵
+
+- **스트리밍 인식**: 말하는 동안 텍스트로 표시(whisper-server는 이미 상주 중이며; 청크 단위 스트리밍이 가능함).
+- **CoreML 가속**: whisper 인코더에 CoreML 활성화.
+- **Developer ID 공증(notarization)**: 서명 전환 + 공증으로 첫 실행 시 "우클릭 → 열기" 제거.

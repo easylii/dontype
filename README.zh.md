@@ -1,6 +1,6 @@
 # Dontype（丝语）
 
-[English](README.md) · **中文**
+[English](README.md) · **中文** · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
 Privacy-first 的 Mac 语音输入 + 朗读工具，by **Easylii**。
 西文品牌 **Dontype**（Don't type — 说就行），中文 **丝语**。双击 **Control** 开始说话，单击结束 —— 本地转写、AI 整理、自动粘贴到光标处。全程在本机，声音不出这台 Mac。
