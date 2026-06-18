@@ -5,10 +5,11 @@
 Privacy-first voice dictation + read-aloud for Mac, by **Easylii**.
 Western brand **Dontype** (don't type — just talk), Chinese **丝语**. Double-tap **Control** to start talking, tap to stop — local transcription, AI cleanup, auto-paste at the cursor. Everything runs on-device; your voice never leaves your Mac.
 
-## Why it's different
+## Highlights
 
 - **2-in-1: speech ⇄ text.** Both directions in one tool — dictate (speech → text) **and** read any selected text aloud (text → speech). Most tools only do one.
 - **No metered API, no extra subscription.** Recognition runs fully **local** (free, offline, no bandwidth). AI cleanup runs on the **Claude Code / Codex you already have**, via their CLI — no separate Anthropic API key and no per-token API billing. Nothing extra to pay; without either, it just outputs the raw transcription (still free).
+- **5-slot clipboard history.** Every dictation result and every manual copy flows into a 5-item history (deduplicated, source-tagged) — click any to copy it back. In-memory only, sensitive clips skipped.
 
 ## How it works
 
@@ -22,8 +23,17 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ## Demo
 
-**Interactive install-flow walkthrough** — open [`design/dontype-install-flow.html`](design/dontype-install-flow.html) in any browser to click through the full first-run experience (Welcome → privacy consent → permissions → model → hotkey → read-aloud → AI → done; 8 screens, with the animated read-aloud demo).
-> Once public, host it as a live link via GitHub Pages; you can also drop real usage GIFs here (dictation / read-aloud / clipboard history). Record with `Cmd+Shift+5`, convert to GIF with Gifski / Kap.
+**Speech → text** — double-tap Control, talk, text is pasted at your cursor:
+
+![Speech to text demo](design/demo-stt.svg)
+
+**Text → speech** — select text, double-tap right ⌘, a voice reads it aloud:
+
+![Text to speech demo](design/demo-tts.svg)
+
+**Interactive install walkthrough** — open [`design/dontype-install-flow.html`](design/dontype-install-flow.html) in a browser for the full first-run experience (8 screens: Welcome → privacy consent → permissions → model → hotkey → read-aloud → AI → done).
+
+> The two demos above are animated SVGs (they play in the README). For the real thing, record short GIFs of the app with `Cmd+Shift+5` → Gifski / Kap; once the repo is public you can also host the HTML walkthrough via GitHub Pages.
 
 ## Supported recognition languages
 

@@ -5,10 +5,11 @@
 Privacy-first 的 Mac 语音输入 + 朗读工具，by **Easylii**。
 西文品牌 **Dontype**（Don't type — 说就行），中文 **丝语**。双击 **Control** 开始说话，单击结束 —— 本地转写、AI 整理、自动粘贴到光标处。全程在本机，声音不出这台 Mac。
 
-## 两个核心差异
+## 核心亮点
 
 - **二合一:语音 ⇄ 文字。** 一个工具两个方向 —— 说话转文字（听写）**和**把选中文字朗读出来（朗读）。多数工具只做一个方向。
 - **不花额外的钱、不走计费 API。** 识别**全本地**（免费、离线、不耗流量）；AI 整理直接用你**已有的 Claude Code / Codex 订阅**（走它们的 CLI）—— 不需要单独的 Anthropic API key，也不按 token 计费。没有额外开销；两个都没有时,直接输出原始转写（照样免费）。
+- **5 条剪贴历史。** 每条转写结果、每次手动复制都进一个 5 条的历史（去重、标来源）—— 点一下复制回去。纯内存、敏感剪贴不收。
 
 ## 工作流程
 
@@ -22,8 +23,17 @@ Privacy-first 的 Mac 语音输入 + 朗读工具，by **Easylii**。
 
 ## Demo
 
-**交互式安装流程演示** —— 在浏览器打开 [`design/dontype-install-flow.html`](design/dontype-install-flow.html)，点一遍完整首启体验（Welcome → 隐私同意 → 权限 → 模型 → 热键 → 朗读 → AI → 完成，共 8 屏，含朗读动画演示）。
-> 公开后可用 GitHub Pages 托管成在线链接；也可在此放真实使用的 GIF（听写 / 朗读 / 剪贴历史）。录制：`Cmd+Shift+5` 录屏，再用 Gifski / Kap 转 GIF。
+**语音 → 文字** —— 双击 Control,说话,文字直接落到光标处:
+
+![语音转文字 demo](design/demo-stt.svg)
+
+**文字 → 语音** —— 选中文字,双击 右⌘,用嗓音念出来:
+
+![文字转语音 demo](design/demo-tts.svg)
+
+**交互式安装流程演示** —— 在浏览器打开 [`design/dontype-install-flow.html`](design/dontype-install-flow.html),点一遍完整首启体验（8 屏:Welcome → 隐私同意 → 权限 → 模型 → 热键 → 朗读 → AI → 完成）。
+
+> 上面两个是**动画 SVG**(README 里会动)。要真机效果就用 `Cmd+Shift+5` 录屏 → Gifski / Kap 转 GIF;公开后还能用 GitHub Pages 把 HTML 那个挂上线。
 
 ## 支持的识别语言
 

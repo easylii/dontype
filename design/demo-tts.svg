@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" width="720" font-family="-apple-system, 'Segoe UI', Roboto, system-ui, sans-serif" role="img" aria-label="Text to speech: select text, double-tap right Command, it reads aloud">
+  <defs>
+    <clipPath id="ttsRead"><rect x="42" y="78" width="0" height="26">
+      <animate attributeName="width" values="0;0;0;216;216;0" keyTimes="0;0.16;0.5;0.86;0.95;1" dur="6s" repeatCount="indefinite"/>
+    </rect></clipPath>
+  </defs>
+
+  <rect x="1" y="1" width="718" height="178" rx="16" fill="#FBFCFD" stroke="#E7EBEF"/>
+  <text x="28" y="34" fill="#8794A1" font-size="12" font-weight="600">TEXT → SPEECH</text>
+
+  <!-- document -->
+  <text x="42" y="62" fill="#B8AEA0" font-size="13">Meeting notes — Q3</text>
+  <!-- selection highlight behind target line -->
+  <rect x="40" y="76" width="0" height="28" rx="3" fill="#BFD9FF">
+    <animate attributeName="width" values="0;0;220;220;220;0" keyTimes="0;0.12;0.42;0.9;0.96;1" dur="6s" repeatCount="indefinite"/>
+  </rect>
+  <!-- base (dark) target line -->
+  <text x="42" y="98" fill="#2B333C" font-size="17" font-weight="500">We ship the beta on Friday.</text>
+  <!-- karaoke (blue) reveal over the same words -->
+  <g clip-path="url(#ttsRead)">
+    <text x="42" y="98" fill="#2E7BE0" font-size="17" font-weight="600">We ship the beta on Friday.</text>
+  </g>
+  <text x="42" y="126" fill="#B8AEA0" font-size="13">Follow up with the design team.</text>
+
+  <!-- key chip + caption -->
+  <g transform="translate(42,140)">
+    <rect width="174" height="26" rx="7" fill="#2A2622"/>
+    <text x="87" y="18" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">⌘ ⌘  double-tap right ⌘</text>
+  </g>
+
+  <!-- speaker + animated sound waves (active during the read phase) -->
+  <g transform="translate(545,90)">
+    <path d="M-44 -10 h12 l14 -11 v42 l-14 -11 h-12 z" fill="#2E7BE0"/>
+    <g fill="#2E7BE0">
+      <rect x="-8" y="-6" width="5" height="12" rx="2.5">
+        <animate attributeName="height" values="6;6;22;8;18;6;6" keyTimes="0;0.5;0.62;0.72;0.82;0.9;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="y" values="-3;-3;-11;-4;-9;-3;-3" keyTimes="0;0.5;0.62;0.72;0.82;0.9;1" dur="6s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="2" y="-10" width="5" height="20" rx="2.5">
+        <animate attributeName="height" values="6;6;30;12;24;6;6" keyTimes="0;0.5;0.58;0.7;0.84;0.92;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="y" values="-3;-3;-15;-6;-12;-3;-3" keyTimes="0;0.5;0.58;0.7;0.84;0.92;1" dur="6s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="12" y="-7" width="5" height="14" rx="2.5">
+        <animate attributeName="height" values="6;6;20;10;16;6;6" keyTimes="0;0.5;0.66;0.74;0.86;0.93;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="y" values="-3;-3;-10;-5;-8;-3;-3" keyTimes="0;0.5;0.66;0.74;0.86;0.93;1" dur="6s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="22" y="-5" width="5" height="10" rx="2.5">
+        <animate attributeName="height" values="6;6;16;8;14;6;6" keyTimes="0;0.5;0.6;0.72;0.8;0.9;1" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="y" values="-3;-3;-8;-4;-7;-3;-3" keyTimes="0;0.5;0.6;0.72;0.8;0.9;1" dur="6s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+  </g>
+  <text x="600" y="150" text-anchor="middle" fill="#8794A1" font-size="12.5">reads aloud, offline</text>
+</svg>
