@@ -1,54 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" width="720" font-family="-apple-system, 'Segoe UI', Roboto, system-ui, sans-serif" role="img" aria-label="Text to speech: select text, double-tap right Command, it reads aloud">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" width="720" font-family="-apple-system, 'Segoe UI', Roboto, system-ui, sans-serif" role="img" aria-label="Text to speech: select text, the pill reads it aloud word by word">
   <defs>
-    <clipPath id="ttsRead"><rect x="42" y="78" width="0" height="26">
-      <animate attributeName="width" values="0;0;0;216;216;0" keyTimes="0;0.16;0.5;0.86;0.95;1" dur="6s" repeatCount="indefinite"/>
+    <clipPath id="ttsRead"><rect x="92" y="116" width="0" height="24">
+      <animate attributeName="width" values="0;0;0;214;214;0" keyTimes="0;0.2;0.46;0.86;0.95;1" dur="6.5s" repeatCount="indefinite"/>
     </rect></clipPath>
+    <filter id="pillShadow2" x="-30%" y="-40%" width="160%" height="200%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#16243f" flood-opacity="0.30"/>
+    </filter>
   </defs>
 
-  <rect x="1" y="1" width="718" height="178" rx="16" fill="#FBFCFD" stroke="#E7EBEF"/>
-  <text x="28" y="34" fill="#8794A1" font-size="12" font-weight="600">TEXT → SPEECH</text>
+  <rect x="1" y="1" width="718" height="198" rx="16" fill="#FBFCFD" stroke="#E7EBEF"/>
+  <text x="28" y="32" fill="#8794A1" font-size="12" font-weight="600">TEXT → SPEECH</text>
 
-  <!-- document -->
-  <text x="42" y="62" fill="#B8AEA0" font-size="13">Meeting notes — Q3</text>
-  <!-- selection highlight behind target line -->
-  <rect x="40" y="76" width="0" height="28" rx="3" fill="#BFD9FF">
-    <animate attributeName="width" values="0;0;220;220;220;0" keyTimes="0;0.12;0.42;0.9;0.96;1" dur="6s" repeatCount="indefinite"/>
+  <!-- document window -->
+  <rect x="70" y="62" width="580" height="106" rx="12" fill="#fff" stroke="#E2E6EB"/>
+  <circle cx="88" cy="80" r="4" fill="#FF5F57"/><circle cx="102" cy="80" r="4" fill="#FEBC2E"/><circle cx="116" cy="80" r="4" fill="#28C840"/>
+
+  <text x="92" y="108" fill="#B8AEA0" font-size="13">Meeting notes — Q3</text>
+  <!-- selection highlight sweeps in -->
+  <rect x="90" y="117" width="0" height="24" rx="3" fill="#BFD9FF">
+    <animate attributeName="width" values="0;0;218;218;218;0" keyTimes="0;0.16;0.44;0.9;0.96;1" dur="6.5s" repeatCount="indefinite"/>
   </rect>
-  <!-- base (dark) target line -->
-  <text x="42" y="98" fill="#2B333C" font-size="17" font-weight="500">We ship the beta on Friday.</text>
-  <!-- karaoke (blue) reveal over the same words -->
+  <text x="92" y="134" fill="#2B333C" font-size="17" font-weight="500">We ship the beta on Friday.</text>
+  <!-- karaoke (blue) reveal as it reads -->
   <g clip-path="url(#ttsRead)">
-    <text x="42" y="98" fill="#2E7BE0" font-size="17" font-weight="600">We ship the beta on Friday.</text>
+    <text x="92" y="134" fill="#2E7BE0" font-size="17" font-weight="600">We ship the beta on Friday.</text>
   </g>
-  <text x="42" y="126" fill="#B8AEA0" font-size="13">Follow up with the design team.</text>
+  <text x="92" y="160" fill="#B8AEA0" font-size="13">Follow up with the design team.</text>
 
-  <!-- key chip + caption -->
-  <g transform="translate(42,140)">
-    <rect width="174" height="26" rx="7" fill="#2A2622"/>
-    <text x="87" y="18" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">⌘ ⌘  double-tap right ⌘</text>
+  <!-- the real pill (floating), speaking state: speaker icon + white waveform -->
+  <rect x="286" y="40" width="150" height="46" rx="23" fill="#1B1B1D" filter="url(#pillShadow2)"/>
+  <g transform="translate(305,63)" fill="#fff">
+    <path d="M-9 -5 h5 l6 -5 v20 l-6 -5 h-5 z"/>
+    <path d="M4 -5 a7 7 0 0 1 0 10" fill="none" stroke="#fff" stroke-width="1.6"/>
+    <path d="M8 -9 a12 12 0 0 1 0 18" fill="none" stroke="#fff" stroke-width="1.6"/>
+  </g>
+  <g fill="#fff">
+    <rect x="332" width="3.4" rx="1.7"><animate attributeName="height" values="5;18;9;15;5" dur="0.8s" repeatCount="indefinite"/><animate attributeName="y" values="60.5;54;58.5;55.5;60.5" dur="0.8s" repeatCount="indefinite"/></rect>
+    <rect x="343" width="3.4" rx="1.7"><animate attributeName="height" values="5;18;9;15;5" dur="0.8s" begin="0.1s" repeatCount="indefinite"/><animate attributeName="y" values="60.5;54;58.5;55.5;60.5" dur="0.8s" begin="0.1s" repeatCount="indefinite"/></rect>
+    <rect x="354" width="3.4" rx="1.7"><animate attributeName="height" values="5;18;9;15;5" dur="0.8s" begin="0.2s" repeatCount="indefinite"/><animate attributeName="y" values="60.5;54;58.5;55.5;60.5" dur="0.8s" begin="0.2s" repeatCount="indefinite"/></rect>
+    <rect x="365" width="3.4" rx="1.7"><animate attributeName="height" values="5;18;9;15;5" dur="0.8s" begin="0.3s" repeatCount="indefinite"/><animate attributeName="y" values="60.5;54;58.5;55.5;60.5" dur="0.8s" begin="0.3s" repeatCount="indefinite"/></rect>
+    <rect x="376" width="3.4" rx="1.7"><animate attributeName="height" values="5;18;9;15;5" dur="0.8s" begin="0.4s" repeatCount="indefinite"/><animate attributeName="y" values="60.5;54;58.5;55.5;60.5" dur="0.8s" begin="0.4s" repeatCount="indefinite"/></rect>
+    <rect x="387" width="3.4" rx="1.7"><animate attributeName="height" values="5;18;9;15;5" dur="0.8s" begin="0.5s" repeatCount="indefinite"/><animate attributeName="y" values="60.5;54;58.5;55.5;60.5" dur="0.8s" begin="0.5s" repeatCount="indefinite"/></rect>
+    <rect x="398" width="3.4" rx="1.7"><animate attributeName="height" values="5;18;9;15;5" dur="0.8s" begin="0.6s" repeatCount="indefinite"/><animate attributeName="y" values="60.5;54;58.5;55.5;60.5" dur="0.8s" begin="0.6s" repeatCount="indefinite"/></rect>
+    <rect x="409" width="3.4" rx="1.7"><animate attributeName="height" values="5;18;9;15;5" dur="0.8s" begin="0.7s" repeatCount="indefinite"/><animate attributeName="y" values="60.5;54;58.5;55.5;60.5" dur="0.8s" begin="0.7s" repeatCount="indefinite"/></rect>
   </g>
 
-  <!-- speaker + animated sound waves (active during the read phase) -->
-  <g transform="translate(545,90)">
-    <path d="M-44 -10 h12 l14 -11 v42 l-14 -11 h-12 z" fill="#2E7BE0"/>
-    <g fill="#2E7BE0">
-      <rect x="-8" y="-6" width="5" height="12" rx="2.5">
-        <animate attributeName="height" values="6;6;22;8;18;6;6" keyTimes="0;0.5;0.62;0.72;0.82;0.9;1" dur="6s" repeatCount="indefinite"/>
-        <animate attributeName="y" values="-3;-3;-11;-4;-9;-3;-3" keyTimes="0;0.5;0.62;0.72;0.82;0.9;1" dur="6s" repeatCount="indefinite"/>
-      </rect>
-      <rect x="2" y="-10" width="5" height="20" rx="2.5">
-        <animate attributeName="height" values="6;6;30;12;24;6;6" keyTimes="0;0.5;0.58;0.7;0.84;0.92;1" dur="6s" repeatCount="indefinite"/>
-        <animate attributeName="y" values="-3;-3;-15;-6;-12;-3;-3" keyTimes="0;0.5;0.58;0.7;0.84;0.92;1" dur="6s" repeatCount="indefinite"/>
-      </rect>
-      <rect x="12" y="-7" width="5" height="14" rx="2.5">
-        <animate attributeName="height" values="6;6;20;10;16;6;6" keyTimes="0;0.5;0.66;0.74;0.86;0.93;1" dur="6s" repeatCount="indefinite"/>
-        <animate attributeName="y" values="-3;-3;-10;-5;-8;-3;-3" keyTimes="0;0.5;0.66;0.74;0.86;0.93;1" dur="6s" repeatCount="indefinite"/>
-      </rect>
-      <rect x="22" y="-5" width="5" height="10" rx="2.5">
-        <animate attributeName="height" values="6;6;16;8;14;6;6" keyTimes="0;0.5;0.6;0.72;0.8;0.9;1" dur="6s" repeatCount="indefinite"/>
-        <animate attributeName="y" values="-3;-3;-8;-4;-7;-3;-3" keyTimes="0;0.5;0.6;0.72;0.8;0.9;1" dur="6s" repeatCount="indefinite"/>
-      </rect>
-    </g>
-  </g>
-  <text x="600" y="150" text-anchor="middle" fill="#8794A1" font-size="12.5">reads aloud, offline</text>
+  <text x="460" y="67" fill="#8794A1" font-size="12.5">double-tap right ⌘ to read aloud</text>
 </svg>
