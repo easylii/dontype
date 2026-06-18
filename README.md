@@ -1,118 +1,120 @@
-# Dontype（丝语）
+# Dontype (丝语)
 
-Privacy-first 的 Mac 语音输入 + 朗读工具，by **Easylii**。
-西文品牌 **Dontype**（Don't type — 说就行），中文 **丝语**。双击 **Control** 开始说话，单击结束 —— 本地转写、AI 整理、自动粘贴到光标处。全程在本机，声音不出这台 Mac。
+**English** · [中文](README.zh.md)
 
-## 工作流程
+Privacy-first voice dictation + read-aloud for Mac, by **Easylii**.
+Western brand **Dontype** (don't type — just talk), Chinese **丝语**. Double-tap **Control** to start talking, tap to stop — local transcription, AI cleanup, auto-paste at the cursor. Everything runs on-device; your voice never leaves your Mac.
+
+## How it works
 
 ```
-双击 Control 开始录音（单击结束 / Esc 结束但不粘贴）
-  → whisper.cpp 本地识别（中英混说，离线；缺模型时回退 Apple 识别）
-  → AI 整理（Claude API / Claude Code / Codex 自动降级；理解后改写成通顺整句）
-  → 悬浮窗显示结果 + 复制按钮
-  → 自动粘贴到刚才的输入框
+Double-tap Control to record (tap to stop / Esc = stop without paste)
+  → whisper.cpp local recognition (offline; falls back to Apple speech if no model)
+  → AI cleanup (Claude API / Claude Code / Codex, auto-fallback; rewrites into fluent sentences)
+  → floating result window + copy button
+  → auto-paste into the field you were in
 ```
 
 ## Demo
 
-**交互式安装流程演示** —— 在浏览器打开 [`design/dontype-install-flow.html`](design/dontype-install-flow.html),点一遍完整首启体验(Welcome → 隐私同意 → 权限 → 模型 → 热键 → 朗读 → AI → 完成,共 8 屏,含朗读动画演示)。
-> 公开后可用 GitHub Pages 托管成一个在线链接;也可在此放真实使用的 GIF（听写 / 朗读 / 剪贴历史）。录制：`Cmd+Shift+5` 录屏,再用 Gifski / Kap 转 GIF。
+**Interactive install-flow walkthrough** — open [`design/dontype-install-flow.html`](design/dontype-install-flow.html) in any browser to click through the full first-run experience (Welcome → privacy consent → permissions → model → hotkey → read-aloud → AI → done; 8 screens, with the animated read-aloud demo).
+> Once public, host it as a live link via GitHub Pages; you can also drop real usage GIFs here (dictation / read-aloud / clipboard history). Record with `Cmd+Shift+5`, convert to GIF with Gifski / Kap.
 
-## 支持的识别语言
+## Supported recognition languages
 
-> **关键:不需要"多语言识别包"。** 一个 whisper 模型就覆盖约 99 种语言 —— 设定语言或开自动检测即可,不存在按语言下载多个识别模型。
+> **Key point: there are no "per-language recognition packs".** One whisper model covers ~99 languages — just set the language or use auto-detect. You never download multiple models per language.
 
-| 档位 | 语言 | 说明 |
-|------|------|------|
-| **强**（可主推） | English · 中文(普通话) · 日本語 · 한국어 · Spanish · French · German · Italian · Portuguese | turbo ≈ 完整 large-v3 |
-| **可用(有保留)** | 粤语 Cantonese · Thai · Vietnamese · Hindi · Russian … | **turbo 在粤语/泰语上明显掉点 → 换 `large-v3`** |
-| **弱**（不建议宣传） | 低资源语言 | 错误率高、易幻觉 |
+**Auto-detect by default** (`recognitionLang: auto`) — it figures out what you're speaking, no manual choice needed. The recognition-language dropdown only lists the **featured** languages for manual locking:
 
-- **turbo vs large-v3**:默认 `large-v3-turbo` 快、对高资源语言≈满血;但**低资源语言(尤其粤语、泰语)会掉**。要更好的多语言精度,把 `whisperModel` 换成 `large-v3`。
-- **自动检测**:设 `recognitionLang: "auto"`,whisper 自动判断你说的语言 —— 做多语言时推荐。
-- **界面语言**(菜单/向导)和识别语言是两回事:目前中/英,其它语言回退英文。日本语日本語 / 韩语等 UI 需要时再加翻译,渐进即可。
+| Tier | Languages | Notes |
+|------|-----------|-------|
+| **Featured** (in dropdown, officially supported) | English · Chinese (Mandarin) · 日本語 · 한국어 · Spanish · French · German · Italian · Portuguese | turbo ≈ full large-v3; safe to advertise |
+| Works, with caveats | Cantonese · Thai · Vietnamese, etc. | turbo degrades noticeably on Cantonese/Thai → switch `whisperModel` to `large-v3`; not in the dropdown, but auto-detect still recognizes them |
+| Weak (not advertised) | low-resource languages | higher error rate, hallucination-prone |
 
-## 安装
+- **turbo vs large-v3**: the default `large-v3-turbo` is fast and ≈ full quality for high-resource languages; it drops on low-resource ones (notably Cantonese, Thai). Switch `whisperModel` to `large-v3` for better multilingual accuracy.
+- **Interface language** (menus / wizard) is separate from recognition — currently Chinese / English, falling back to English elsewhere. Japanese / Korean UI etc. can be added gradually when a market justifies the translation work.
 
-**分发安装（推荐）**：`./make-dmg.sh` 打出 `Dontype.dmg`（内含 `install.command` / `PRIVACY.md` / 安装说明）。装机时右键点 DMG 里的 **install.command** →「打开」，脚本自动拷到 `/Applications`、去隔离（之后直接双击）、写默认配置并启动。
+## Install
 
-**首次启动 = 分页设置向导**：Welcome → **隐私政策（必须同意才能继续）** → 权限 → 模型 → 热键 → 朗读 → AI → 完成。之后菜单栏「设置」会打开**单窗口设置面板**（不再走分页流程）。
+**Distributed install (recommended)**: `./make-dmg.sh` builds `Dontype.dmg` (bundling `install.command` / `PRIVACY.md` / install notes). To install, right-click **install.command** inside the DMG → "Open"; the script copies to `/Applications`, strips quarantine (double-click works afterward), writes a default config, and launches.
 
-**本地开发**：
+**First launch = paginated setup wizard**: Welcome → **Privacy policy (must agree to continue)** → Permissions → Model → Hotkey → Read-aloud → AI → Done. Afterward, "Settings" in the menu bar opens a **single-window settings panel** (no longer the paginated flow).
+
+**Local development**:
 
 ```bash
 cd ~/Documents/SiYu
-./build-app.sh          # 编译 + 打包 + 签名 → SiYu.app
+./build-app.sh          # build + bundle + sign → SiYu.app
 open SiYu.app
 ```
 
-> 注：app bundle 内部仍叫 `SiYu.app`，但 Finder / 权限 / 菜单显示的品牌名是 **Dontype**（英文系统）/ **丝语**（中文系统），靠 `Info.plist` + `Resources/*.lproj` 本地化。
-> 签名证书在 `.cert/`（**不在仓库里**，需单独备份）—— 固定证书保证「辅助功能」等授权跨重编不失效。
+> Note: the app bundle is still named `SiYu.app` internally, but Finder / permissions / menus show the brand **Dontype** (English systems) / **丝语** (Chinese systems), via `Info.plist` + `Resources/*.lproj` localization.
+> The signing certificate lives in `.cert/` (**not in the repo** — back it up separately). A fixed cert keeps Accessibility and other TCC grants valid across rebuilds.
 
-启动后菜单栏出现**气泡 logo**，录音时变实心红、整理时变实心橙。
+After launch a **bubble logo** appears in the menu bar; it turns solid red while recording, solid orange while cleaning up.
 
-## 剪贴历史（最多 5 条）
+## Clipboard history (up to 5)
 
-菜单栏「语音输入」区有一个**剪贴历史**，最多 5 条、点一下复制回剪贴板：
-- 两种来源，带图标区分：🌊 本 app 转写结果 / 📋 你手动复制的文字。
-- **自动去重**：同样内容只留一条并置顶。
-- **纯内存、不落盘、退出即清**；密码管理器标记的敏感剪贴**不收**。
+The menu bar's "Voice input" section has a **clipboard history** — up to 5 entries, click to copy back to the clipboard:
+- Two sources, marked by icon: 🌊 this app's transcriptions / 📋 things you copied manually.
+- **Auto-dedup**: identical content is kept once and moved to top.
+- **In-memory only, never written to disk, cleared on quit**; sensitive clipboard items flagged by password managers are **skipped**.
 
-## 朗读选中文字（反向）
+## Read selected text aloud (reverse)
 
-在**任何 app**里选中（或把光标放到起点）→ **双击右 ⌘** → 用 Premium 嗓音**从这里往下念到当前文本块结尾**（离线、免费）。念的时候**单击右 ⌘**暂停/继续，**Esc** 停。
-- 往下读：优先用辅助功能拿「焦点文本框全文 + 选区位置」，从选区起点读到该文本块结尾；拿不到（部分网页/终端/Electron）就退回**只念选中那段**。
-- 选区抓取兜底：辅助功能拿不到时，模拟 Cmd+C 读剪贴板并**还原**。
-- 设置：在设置面板「⑧ 朗读选中文字 → 设置」里搞定语音 / 语速 / 触发键 / 试听；没有 Premium 嗓音时有入口去系统设置下载。
+In **any app**, select text (or place the cursor at the start) → **double-tap right ⌘** → a Premium voice reads **from there down to the end of the current text block** (offline, free). While reading: **tap right ⌘** to pause/resume, **Esc** to stop.
+- Reading downward: it first tries Accessibility to get "the focused field's full text + selection position", reading from the selection start to the end of that text block; if it can't (some web pages / terminals / Electron) it falls back to **reading only the selected span**.
+- Selection fallback: when Accessibility can't get the selection, it synthesizes Cmd+C, reads the clipboard, and **restores** it.
+- Settings: configure voice / rate / trigger key / preview under the settings panel "⑧ Read selection aloud → Configure"; if you have no Premium voice there's an entry point to download one in System Settings.
 
-## 隐私
+## Privacy
 
-声音永不离开本机、零收集、零追踪、无账号、无埋点。可选的 AI 整理只发**文字**（非音频）到你**自己配置**的 Claude/Codex 账号。完整政策见 [`PRIVACY.md`](PRIVACY.md)（双语，GDPR / CCPA 级）。首次启动有隐私同意关卡。
+Your voice never leaves the device — zero collection, zero tracking, no accounts, no telemetry. Optional AI cleanup sends only **text** (not audio) to the Claude/Codex account **you configure yourself**. Full policy in [`PRIVACY.md`](PRIVACY.md) (bilingual, GDPR / CCPA grade). First launch has a privacy-consent gate.
 
-## 配置
+## Configuration
 
-AI 清洗后端按优先级自动选：`Claude API（最快）→ Claude Code → Codex → 原文直出`，任一档失败自动降级。想用最快的 API：环境变量 `ANTHROPIC_API_KEY`，或在 `~/.config/siyu/config.json` 填 `apiKey`。没有 key 也能用：有 Claude Code / Codex 就走订阅，都没有则输出识别原文。
+The AI cleanup backend is auto-selected by priority: `Claude API (fastest) → Claude Code → Codex → raw passthrough`, with automatic fallback on failure. For the fastest API: set `ANTHROPIC_API_KEY`, or put `apiKey` in `~/.config/siyu/config.json`. It works without a key too: with Claude Code / Codex it uses your subscription; with none it outputs the raw transcription.
 
-`~/.config/siyu/config.json` 字段：
+`~/.config/siyu/config.json` fields:
 
-| 字段 | 说明 | 默认 |
-|------|------|------|
-| `apiKey` | Anthropic API key | 空（回退到环境变量） |
-| `model` | API 清洗用的模型 | `claude-haiku-4-5-20251001` |
-| `cleanup` | 是否开启 AI 清洗（自动判断口水词才整理） | `true` |
-| `autoPaste` | 出结果后自动粘贴到光标 | `true` |
-| `locale` | Apple 备用后端的识别 locale | `zh-CN` |
-| `whisperModel` | whisper 模型 id（`large-v3-turbo` / `large-v3` / `medium` / `small`） | `large-v3-turbo` |
-| `recognitionLang` | whisper 识别语言（`zh` / `en` / `ja` / `ko` / `yue` / `auto`） | `zh` |
-| `uiLang` | 界面语言（`auto` / `zh` / `en`） | `auto` |
-| `readKey` | 朗读触发键（`control`/`fn`/`rightCommand`/`rightOption`/`option`） | `rightCommand` |
-| `readVoice` | 朗读嗓音 id（空=按文字语言自动挑 Premium） | 空 |
-| `readRate` | 朗读语速 0…1 | `0.5` |
+| Field | Meaning | Default |
+|-------|---------|---------|
+| `apiKey` | Anthropic API key | empty (falls back to env var) |
+| `model` | model for API cleanup | `claude-haiku-4-5-20251001` |
+| `cleanup` | enable AI cleanup (auto-triggers only when fillers detected) | `true` |
+| `autoPaste` | auto-paste at cursor after a result | `true` |
+| `whisperModel` | whisper model id (`large-v3-turbo` / `large-v3` / `medium` / `small`) | `large-v3-turbo` |
+| `recognitionLang` | recognition language (`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr` / `de` / `it` / `pt`) | `auto` |
+| `uiLang` | interface language (`auto` / `zh` / `en`) | `auto` |
+| `readKey` | read-aloud trigger key (`control`/`fn`/`rightCommand`/`rightOption`/`option`) | `rightCommand` |
+| `readVoice` | read-aloud voice id (empty = auto-pick Premium by text language) | empty |
+| `readRate` | read-aloud rate 0…1 | `0.5` |
 
-## 结构
+## Structure
 
-| 文件 | 职责 |
-|------|------|
-| `AppDelegate.swift` | 菜单栏、流程编排、剪贴历史、权限 |
-| `HotkeyMonitor.swift` | 全局双击修饰键检测（CGEventTap） |
-| `Dictation.swift` | 录音 + 识别（whisper 首选，Apple 备用） |
-| `Whisper.swift` | whisper.cpp 后端：模型目录、识别语言、常驻 server |
-| `Cleaner.swift` | AI 整理（API / Claude Code / Codex 降级链，理解后改写成整句） |
-| `ModelDownloader.swift` | whisper 模型下载（进度回调给向导） |
-| `TextGrabber.swift` | 取选中文字（辅助功能直读 + Cmd+C 兜底还原剪贴板） |
-| `Speaker.swift` | 朗读引擎（AVSpeechSynthesizer + Premium 嗓音，按语言自动挑） |
-| `HotkeySetup.swift` / `ReadSetup.swift` | 开始/结束热键、朗读设置（双击测试确认才生效） |
-| `Onboarding.swift` | 首装**分页向导**（含隐私同意）+ 菜单**设置面板**（同类两模式） |
-| `RecallStore.swift` | 剪贴历史（最多 5 条、去重、纯内存、跳过敏感剪贴） |
-| `IconRenderer.swift` | 菜单栏图标 + 麦克风来源图标（SVG 路径实时绘制） |
-| `HUD.swift` | 悬浮结果窗 / 可拖动药丸 / 朗读声波 |
-| `Paster.swift` | 剪贴板 + 合成 Cmd+V |
-| `L.swift` | 界面多语言（中/英） · `Config.swift` 运行配置 |
+| File | Responsibility |
+|------|----------------|
+| `AppDelegate.swift` | menu bar, flow orchestration, clipboard history, permissions |
+| `HotkeyMonitor.swift` | global double-tap modifier-key detection (CGEventTap) |
+| `Dictation.swift` | recording + recognition (whisper first, Apple fallback) |
+| `Whisper.swift` | whisper.cpp backend: model dir, recognition language, resident server |
+| `Cleaner.swift` | AI cleanup (API / Claude Code / Codex fallback chain; rewrites into sentences) |
+| `ModelDownloader.swift` | whisper model download (progress callbacks to the wizard) |
+| `TextGrabber.swift` | grab selected text (Accessibility direct + Cmd+C fallback restoring clipboard) |
+| `Speaker.swift` | read-aloud engine (AVSpeechSynthesizer + Premium voices, auto-pick by language) |
+| `HotkeySetup.swift` / `ReadSetup.swift` | start/stop hotkey, read-aloud setup (double-tap test to confirm) |
+| `Onboarding.swift` | first-run **paginated wizard** (with privacy consent) + menu **settings panel** (two modes, one class) |
+| `RecallStore.swift` | clipboard history (up to 5, dedup, in-memory, skips sensitive clips) |
+| `IconRenderer.swift` | menu-bar icon + mic-source icons (SVG paths drawn at runtime) |
+| `HUD.swift` | floating result window / draggable pill / read-aloud waveform |
+| `Paster.swift` | clipboard + synthetic Cmd+V |
+| `L.swift` | UI localization (zh/en) · `Config.swift` runtime config |
 
-`design/dontype-install-flow.html` 是完整安装体验的交互原型（演示用）。
+`design/dontype-install-flow.html` is the interactive install-flow prototype (for demo).
 
-## 后续可升级
+## Roadmap
 
-- **流式识别**：边说边出字（whisper-server 已常驻，可做分段流式）。
-- **CoreML 加速**：为 whisper encoder 开 CoreML。
-- **Developer ID 公证**：换签名 + notarize，去掉首次「右键打开」。
+- **Streaming recognition**: text as you speak (whisper-server is already resident; can do chunked streaming).
+- **CoreML acceleration**: enable CoreML for the whisper encoder.
+- **Developer ID notarization**: switch signing + notarize to drop the first-run "right-click → Open".

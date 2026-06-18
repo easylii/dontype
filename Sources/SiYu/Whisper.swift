@@ -41,12 +41,16 @@ enum Whisper {
 
     /// 识别语言：whisper 语言码 + 显示名。auto = 让 whisper 自动检测。
     static let languages: [(code: String, zh: String, en: String)] = [
-        ("zh", "中文", "Chinese"),
+        ("auto", "自动检测（默认）", "Auto-detect (default)"),
         ("en", "英语", "English"),
+        ("zh", "中文", "Chinese"),
         ("ja", "日语", "Japanese"),
         ("ko", "韩语", "Korean"),
-        ("yue", "粤语", "Cantonese"),
-        ("auto", "自动检测", "Auto-detect"),
+        ("es", "西班牙语", "Spanish"),
+        ("fr", "法语", "French"),
+        ("de", "德语", "German"),
+        ("it", "意大利语", "Italian"),
+        ("pt", "葡萄牙语", "Portuguese"),
     ]
 
     static func languageDisplay(_ code: String) -> String {
