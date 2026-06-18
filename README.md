@@ -7,7 +7,7 @@ Western brand **Dontype** (don't type — just talk), Chinese **丝语**. Double
 
 ## Highlights
 
-- **2-in-1: speech ⇄ text.** Both directions in one tool — dictate (speech → text) **and** read any selected text aloud (text → speech). Most tools only do one.
+- **3-in-1.** Speech → text (dictation), text → speech (read any selected text aloud), and a 5-slot clipboard history — three tools in one tiny menu-bar app. Most dictation tools do just one.
 - **No metered API, no extra subscription.** Recognition runs fully **local** (free, offline, no bandwidth). AI cleanup runs on the **Claude Code / Codex you already have**, via their CLI — no separate Anthropic API key and no per-token API billing. Nothing extra to pay; without either, it just outputs the raw transcription (still free).
 - **5-slot clipboard history.** Every dictation result and every manual copy flows into a 5-item history (deduplicated, source-tagged) — click any to copy it back. In-memory only, sensitive clips skipped.
 
@@ -30,6 +30,10 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 **Text → speech** — select text, double-tap right ⌘, a voice reads it aloud:
 
 ![Text to speech demo](design/demo-tts.svg)
+
+**Clipboard history** — your last 5 clips (dictations + manual copies), click one to copy it back:
+
+![Clipboard history demo](design/demo-clipboard.svg)
 
 **Interactive install walkthrough** — open [`design/dontype-install-flow.html`](design/dontype-install-flow.html) in a browser for the full first-run experience (8 screens: Welcome → privacy consent → permissions → model → hotkey → read-aloud → AI → done).
 

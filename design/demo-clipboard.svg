@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" width="720" font-family="-apple-system, 'Segoe UI', Roboto, system-ui, sans-serif" role="img" aria-label="Clipboard history: the last 5 clips, click one to copy it back">
+  <defs>
+    <filter id="menuShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#16243f" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect x="1" y="1" width="718" height="198" rx="16" fill="#FBFCFD" stroke="#E7EBEF"/>
+  <text x="28" y="32" fill="#8794A1" font-size="12" font-weight="600">CLIPBOARD · 3-IN-1</text>
+
+  <!-- menu-bar dropdown -->
+  <rect x="210" y="34" width="300" height="158" rx="12" fill="#fff" stroke="#E2E6EB" filter="url(#menuShadow)"/>
+  <text x="226" y="56" fill="#8794A1" font-size="11.5" font-weight="600">Clipboard history · click to copy</text>
+  <line x1="222" y1="64" x2="498" y2="64" stroke="#EEF1F4"/>
+
+  <!-- hover highlight on row 3 -->
+  <rect x="216" y="120" width="288" height="24" rx="6" fill="#2E7BE0" opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.3;0.35;0.9;1" dur="6.5s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- rows: 🌊 = dictation, 📋 = manual copy -->
+  <!-- row 1 (dictation) -->
+  <g fill="#2E7BE0"><rect x="228" y="81" width="2.6" height="6" rx="1.3"/><rect x="232" y="78" width="2.6" height="12" rx="1.3"/><rect x="236" y="80" width="2.6" height="8" rx="1.3"/></g>
+  <text x="250" y="89" fill="#2B333C" font-size="13.5">Ship the beta on Friday.</text>
+  <!-- row 2 (copied) -->
+  <g fill="none" stroke="#7C8A99" stroke-width="1.4"><rect x="228" y="102" width="11" height="13" rx="2"/><path d="M231 102 v-2 h5 v2"/></g>
+  <text x="250" y="113" fill="#2B333C" font-size="13.5">github.com/easylii/dontype</text>
+  <!-- row 3 (dictation) — gets clicked -->
+  <g><rect x="228" y="129" width="2.6" height="6" rx="1.3"/><rect x="232" y="126" width="2.6" height="12" rx="1.3"/><rect x="236" y="128" width="2.6" height="8" rx="1.3"/>
+    <animate attributeName="fill" values="#2E7BE0;#2E7BE0;#fff;#fff;#2E7BE0" keyTimes="0;0.3;0.35;0.9;1" dur="6.5s" repeatCount="indefinite"/></g>
+  <text x="250" y="137" font-size="13.5" fill="#2B333C">Sync Monday at 10am.
+    <animate attributeName="fill" values="#2B333C;#2B333C;#fff;#fff;#2B333C" keyTimes="0;0.3;0.35;0.9;1" dur="6.5s" repeatCount="indefinite"/>
+  </text>
+  <!-- row 4 (copied) -->
+  <g fill="none" stroke="#7C8A99" stroke-width="1.4"><rect x="228" y="150" width="11" height="13" rx="2"/><path d="M231 150 v-2 h5 v2"/></g>
+  <text x="250" y="161" fill="#2B333C" font-size="13.5">npm run build</text>
+  <!-- row 5 (dictation) -->
+  <g fill="#2E7BE0"><rect x="228" y="177" width="2.6" height="6" rx="1.3"/><rect x="232" y="174" width="2.6" height="12" rx="1.3"/><rect x="236" y="176" width="2.6" height="8" rx="1.3"/></g>
+  <text x="250" y="185" fill="#2B333C" font-size="13.5">Thanks, that works great!</text>
+
+  <!-- "copied" toast -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.36;0.42;0.88;1" dur="6.5s" repeatCount="indefinite"/>
+    <rect x="540" y="120" width="150" height="26" rx="13" fill="#E6F6EE"/>
+    <text x="558" y="137" fill="#1FA463" font-size="12.5" font-weight="600">✓ copied to clipboard</text>
+  </g>
+
+  <!-- cursor -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="560,176; 560,176; 392,124; 392,124; 560,176" keyTimes="0;0.08;0.32;0.9;1" dur="6.5s" repeatCount="indefinite"/>
+    <path d="M0 0 L0 17 L4.5 12.5 L7.5 19 L10 18 L7 11.5 L13 11.5 Z" fill="#2B333C" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+  </g>
+</svg>

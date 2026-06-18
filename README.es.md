@@ -7,7 +7,7 @@ Marca occidental **Dontype** (don't type — solo habla), marca china **丝语**
 
 ## Lo más destacado
 
-- **2 en 1: voz ⇄ texto.** Ambas direcciones en una sola herramienta: dicta (voz → texto) **y** lee en voz alta cualquier texto seleccionado (texto → voz). La mayoría de las herramientas solo hacen una.
+- **3 en 1.** Voz → texto (dictado), texto → voz (lee en voz alta el texto seleccionado) y un historial de portapapeles de 5 ranuras: tres herramientas en una sola app de la barra de menús. La mayoría de las herramientas de dictado solo hacen una.
 - **Sin API con medición, sin suscripción adicional.** El reconocimiento se ejecuta totalmente **en local** (gratis, sin conexión, sin ancho de banda). La limpieza con IA se apoya en el **Claude Code / Codex que ya tienes**, a través de su CLI: sin una clave aparte de la Anthropic API y sin facturación de API por token. No hay nada extra que pagar; sin ninguno de los dos, simplemente entrega la transcripción en bruto (igualmente gratis).
 - **Historial de portapapeles de 5 ranuras.** Cada resultado de dictado y cada copia manual entra en un historial de 5 elementos (sin duplicados, etiquetado por origen): haz clic en cualquiera para volver a copiarlo. Solo en memoria, se omiten los recortes sensibles.
 
@@ -30,6 +30,10 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 **Texto → voz** — selecciona texto, pulsa dos veces el ⌘ derecho, y una voz lo lee en voz alta:
 
 ![Demostración de texto a voz](design/demo-tts.svg)
+
+**Historial del portapapeles** — tus últimos 5 recortes (dictados + copias manuales), haz clic en uno para volver a copiarlo:
+
+![Demostración del historial del portapapeles](design/demo-clipboard.svg)
 
 **Recorrido interactivo de instalación** — abre [`design/dontype-install-flow.html`](design/dontype-install-flow.html) en un navegador para la experiencia completa de primer arranque (8 pantallas: Bienvenida → consentimiento de privacidad → permisos → modelo → atajo → lectura en voz alta → IA → listo).
 

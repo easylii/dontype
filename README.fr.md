@@ -7,7 +7,7 @@ Marque occidentale **Dontype** (don't type — parlez, tout simplement), marque 
 
 ## Points forts
 
-- **2 en 1 : voix ⇄ texte.** Les deux sens dans un seul outil — dicter (voix → texte) **et** lire à voix haute n'importe quel texte sélectionné (texte → voix). La plupart des outils ne font que l'un des deux.
+- **3 en 1.** Voix → texte (dictée), texte → voix (lecture à voix haute du texte sélectionné) et un historique de presse-papiers à 5 emplacements — trois outils dans une seule app de la barre de menus. La plupart des outils de dictée n'en font qu'un.
 - **Aucune API facturée à l'usage, aucun abonnement supplémentaire.** La reconnaissance s'exécute entièrement **en local** (gratuite, hors ligne, sans consommation de bande passante). Le nettoyage par IA s'appuie sur le **Claude Code / Codex que vous possédez déjà**, via leur CLI — pas de clé d'API Anthropic distincte et pas de facturation à l'usage par jeton. Rien de plus à payer ; sans l'un ou l'autre, il se contente de produire la transcription brute (toujours gratuite).
 - **Historique de presse-papiers à 5 emplacements.** Chaque résultat de dictée et chaque copie manuelle alimente un historique de 5 éléments (dédoublonné, étiqueté par source) — cliquez sur n'importe lequel pour le recopier. En mémoire uniquement, les éléments sensibles sont ignorés.
 
@@ -30,6 +30,10 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 **Texte → voix** — sélectionnez du texte, appuyez deux fois sur le ⌘ droit, une voix le lit à voix haute :
 
 ![Démo texte vers voix](design/demo-tts.svg)
+
+**Historique de presse-papiers** — vos 5 derniers extraits (dictées + copies manuelles), cliquez sur l'un pour le recopier :
+
+![Démo de l'historique de presse-papiers](design/demo-clipboard.svg)
 
 **Parcours d'installation interactif** — ouvrez [`design/dontype-install-flow.html`](design/dontype-install-flow.html) dans un navigateur pour vivre l'intégralité de la première utilisation (8 écrans : Bienvenue → consentement à la vie privée → autorisations → modèle → raccourci → lecture à voix haute → IA → terminé).
 
