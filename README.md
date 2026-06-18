@@ -5,6 +5,11 @@
 Privacy-first voice dictation + read-aloud for Mac, by **Easylii**.
 Western brand **Dontype** (don't type — just talk), Chinese **丝语**. Double-tap **Control** to start talking, tap to stop — local transcription, AI cleanup, auto-paste at the cursor. Everything runs on-device; your voice never leaves your Mac.
 
+## Why it's different
+
+- **2-in-1: speech ⇄ text.** Both directions in one tool — dictate (speech → text) **and** read any selected text aloud (text → speech). Most tools only do one.
+- **No metered API, no extra subscription.** Recognition runs fully **local** (free, offline, no bandwidth). AI cleanup runs on the **Claude Code / Codex you already have**, via their CLI — no separate Anthropic API key and no per-token API billing. Nothing extra to pay; without either, it just outputs the raw transcription (still free).
+
 ## How it works
 
 ```
