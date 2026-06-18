@@ -1,20 +1,23 @@
-# 丝语 SiYu
+# Dontype（丝语）
 
-自用的 Mac 中文语音输入。双击 **Control** 开始说话，单击结束 —— 自动转写、AI 整理、复制并粘贴到光标处。类似 Typeless，但本地、免费、为自己定制。
+Privacy-first 的 Mac 语音输入 + 朗读工具，by **Easylii**。
+西文品牌 **Dontype**（Don't type — 说就行），中文 **丝语**。双击 **Control** 开始说话，单击结束 —— 本地转写、AI 整理、自动粘贴到光标处。全程在本机，声音不出这台 Mac。
 
 ## 工作流程
 
 ```
 双击 Control 开始录音（单击结束 / Esc 结束但不粘贴）
   → whisper.cpp 本地识别（中英混说，离线；缺模型时回退 Apple 识别）
-  → AI 整理（Claude API / Claude Code / Codex 自动降级，去口水词 / 顺语序）
+  → AI 整理（Claude API / Claude Code / Codex 自动降级；理解后改写成通顺整句）
   → 悬浮窗显示结果 + 复制按钮
   → 自动粘贴到刚才的输入框
 ```
 
 ## 安装
 
-**分发安装（推荐）**：`./make-dmg.sh` 打出 `SiYu.dmg`。装机时右键点 DMG 里的 **install.command** →「打开」，脚本会自动拷到 `/Applications`、去隔离（之后 App 直接双击）、写默认配置并启动，随后弹出**设置向导**带你走完权限与模型下载。
+**分发安装（推荐）**：`./make-dmg.sh` 打出 `Dontype.dmg`（内含 `install.command` / `PRIVACY.md` / 安装说明）。装机时右键点 DMG 里的 **install.command** →「打开」，脚本自动拷到 `/Applications`、去隔离（之后直接双击）、写默认配置并启动。
+
+**首次启动 = 分页设置向导**：Welcome → **隐私政策（必须同意才能继续）** → 权限 → 模型 → 热键 → 朗读 → AI → 完成。之后菜单栏「设置」会打开**单窗口设置面板**（不再走分页流程）。
 
 **本地开发**：
 
@@ -24,31 +27,32 @@ cd ~/Documents/SiYu
 open SiYu.app
 ```
 
-首次启动弹出**设置向导**（也可从菜单「设置向导…」随时重开），一屏完成：
-1. **麦克风** —— 点「请求」录音权限
-2. **语音识别** —— 点「请求」（仅备用后端用）
-3. **辅助功能** —— 点「打开设置」勾选 丝语（监听热键 + 自动粘贴；**勾上即生效，无需重启**）
-4. **识别模型** —— 点「下载」（whisper 模型 ~1.5GB，一次性；下载期间走系统识别顶着）
-5. **AI 整理** —— 装了 Claude Code 或 Codex 自动启用，可点「测试」
+> 注：app bundle 内部仍叫 `SiYu.app`，但 Finder / 权限 / 菜单显示的品牌名是 **Dontype**（英文系统）/ **丝语**（中文系统），靠 `Info.plist` + `Resources/*.lproj` 本地化。
+> 签名证书在 `.cert/`（**不在仓库里**，需单独备份）—— 固定证书保证「辅助功能」等授权跨重编不失效。
 
-启动后菜单栏出现「丝」字图标，录音时变「● 丝」。
+启动后菜单栏出现**气泡 logo**，录音时变实心红、整理时变实心橙。
+
+## 剪贴历史（最多 5 条）
+
+菜单栏「语音输入」区有一个**剪贴历史**，最多 5 条、点一下复制回剪贴板：
+- 两种来源，带图标区分：🌊 本 app 转写结果 / 📋 你手动复制的文字。
+- **自动去重**：同样内容只留一条并置顶。
+- **纯内存、不落盘、退出即清**；密码管理器标记的敏感剪贴**不收**。
 
 ## 朗读选中文字（反向）
 
-在**任何 app**里选中（或把光标放到起点）→ **双击右 ⌘** → 用 Premium 嗓音**从这里往下念到当前文本块结尾**（离线、免费）。念的时候**单击右 ⌘**暂停/继续，**Esc** 停；菜单栏旁的药丸会显示声波。
-- 往下读：优先用辅助功能拿「焦点文本框的全文 + 选区位置」，从选区起点读到该文本块结尾（不跳到别的区块）；拿不到（部分网页/终端/Electron）就退回**只念选中的那段**。
-- 选区抓取兜底：辅助功能拿不到选中文字时，模拟 Cmd+C 读剪贴板并**还原** —— 终端里的 Claude Code、VS Code、网页都覆盖。
-- 设置：在「设置向导 ▸ ⑦ 朗读选中文字 → 设置」里一处搞定 —— 语音（Premium/自动按语言挑）、语速、触发键（默认双击右 ⌘，和说话的 `triggerKey` 分开）、试听。没有 Premium 嗓音时有入口去系统设置下载。
+在**任何 app**里选中（或把光标放到起点）→ **双击右 ⌘** → 用 Premium 嗓音**从这里往下念到当前文本块结尾**（离线、免费）。念的时候**单击右 ⌘**暂停/继续，**Esc** 停。
+- 往下读：优先用辅助功能拿「焦点文本框全文 + 选区位置」，从选区起点读到该文本块结尾；拿不到（部分网页/终端/Electron）就退回**只念选中那段**。
+- 选区抓取兜底：辅助功能拿不到时，模拟 Cmd+C 读剪贴板并**还原**。
+- 设置：在设置面板「⑧ 朗读选中文字 → 设置」里搞定语音 / 语速 / 触发键 / 试听；没有 Premium 嗓音时有入口去系统设置下载。
+
+## 隐私
+
+声音永不离开本机、零收集、零追踪、无账号、无埋点。可选的 AI 整理只发**文字**（非音频）到你**自己配置**的 Claude/Codex 账号。完整政策见 [`PRIVACY.md`](PRIVACY.md)（双语，GDPR / CCPA 级）。首次启动有隐私同意关卡。
 
 ## 配置
 
-菜单栏图标点开可切换：**AI 整理** 开关、**自动粘贴**、**麦克风**、**识别模型**、**识别语言**、**界面语言**，以及重开**设置向导**。
-
-AI 清洗的后端按优先级自动选择：`Claude API（最快）→ Claude Code → Codex → 原文直出`，任一档失败自动降级。想用最快的 API：
-- 环境变量 `ANTHROPIC_API_KEY`，或
-- 在 `~/.config/siyu/config.json` 填 `apiKey`
-
-没有 key 也能用：有 Claude Code / Codex 就走订阅，都没有则直接输出识别原文。
+AI 清洗后端按优先级自动选：`Claude API（最快）→ Claude Code → Codex → 原文直出`，任一档失败自动降级。想用最快的 API：环境变量 `ANTHROPIC_API_KEY`，或在 `~/.config/siyu/config.json` 填 `apiKey`。没有 key 也能用：有 Claude Code / Codex 就走订阅，都没有则输出识别原文。
 
 `~/.config/siyu/config.json` 字段：
 
@@ -70,23 +74,26 @@ AI 清洗的后端按优先级自动选择：`Claude API（最快）→ Claude C
 
 | 文件 | 职责 |
 |------|------|
+| `AppDelegate.swift` | 菜单栏、流程编排、剪贴历史、权限 |
 | `HotkeyMonitor.swift` | 全局双击修饰键检测（CGEventTap） |
 | `Dictation.swift` | 录音 + 识别（whisper 首选，Apple 备用） |
 | `Whisper.swift` | whisper.cpp 后端：模型目录、识别语言、常驻 server |
+| `Cleaner.swift` | AI 整理（API / Claude Code / Codex 降级链，理解后改写成整句） |
+| `ModelDownloader.swift` | whisper 模型下载（进度回调给向导） |
 | `TextGrabber.swift` | 取选中文字（辅助功能直读 + Cmd+C 兜底还原剪贴板） |
-| `Speaker.swift` | 朗读引擎（AVSpeechSynthesizer + Premium 嗓音、按语言自动挑） |
-| `HotkeySetup.swift` | 开始/结束热键设置（双击测试确认才生效） |
-| `ReadSetup.swift` | 朗读设置（语音/语速/触发键/试听，从设置向导进入） |
-| `Cleaner.swift` | AI 整理（API / Claude Code / Codex 降级链，按语言选 prompt） |
-| `ModelDownloader.swift` | whisper 模型下载（进度回调给设置向导） |
-| `Onboarding.swift` | 设置向导：权限清单 / 模型下载 / 后端检查 一屏完成 |
-| `L.swift` | 界面多语言（中/英） |
-| `HUD.swift` | 悬浮结果窗 + 复制/粘贴 |
+| `Speaker.swift` | 朗读引擎（AVSpeechSynthesizer + Premium 嗓音，按语言自动挑） |
+| `HotkeySetup.swift` / `ReadSetup.swift` | 开始/结束热键、朗读设置（双击测试确认才生效） |
+| `Onboarding.swift` | 首装**分页向导**（含隐私同意）+ 菜单**设置面板**（同类两模式） |
+| `RecallStore.swift` | 剪贴历史（最多 5 条、去重、纯内存、跳过敏感剪贴） |
+| `IconRenderer.swift` | 菜单栏图标 + 麦克风来源图标（SVG 路径实时绘制） |
+| `HUD.swift` | 悬浮结果窗 / 可拖动药丸 / 朗读声波 |
 | `Paster.swift` | 剪贴板 + 合成 Cmd+V |
-| `AppDelegate.swift` | 菜单栏、流程编排、权限 |
+| `L.swift` | 界面多语言（中/英） · `Config.swift` 运行配置 |
+
+`design/dontype-install-flow.html` 是完整安装体验的交互原型（演示用）。
 
 ## 后续可升级
 
-- **流式识别**：边说边出字，进一步降延迟（whisper-server 已常驻，可做分段流式）。
-- **CoreML 加速**：为 whisper encoder 开 CoreML，Apple Silicon 上识别更快。
-- **自定义手势**：触发键在「设置向导 ▸ ⑥ 开始/结束热键」里选并确认生效（Typeless 式：双击测试通过才启用）；目前手势固定为双击开始/单击结束，未来可让「开始/结束分别用单击或双击」也可配。
+- **流式识别**：边说边出字（whisper-server 已常驻，可做分段流式）。
+- **CoreML 加速**：为 whisper encoder 开 CoreML。
+- **Developer ID 公证**：换签名 + notarize，去掉首次「右键打开」。

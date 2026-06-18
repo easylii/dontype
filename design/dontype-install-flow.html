@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dontype · 安装体验流程</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --o1:#2E7BE0; --o2:#5E9BEC; --o3:#A6C9F4;
+    --ink:#2B333C; --muted:#8794A1; --line:#E7EBEF;
+    --card:#FFFFFF; --cream:#F7F9FB; --green:#1FA463;
+    --shadow:0 12px 40px rgba(40,60,90,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Nunito',-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,#FBFCFD,#ECF1F5);color:var(--ink);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 16px}
+  .head{text-align:center;margin-bottom:18px}
+  .head h1{font-size:20px;font-weight:600;letter-spacing:.2px}
+  .head p{font-size:13px;color:var(--muted);margin-top:4px}
+
+  .frame{width:520px;max-width:100%;background:var(--card);border-radius:18px;position:relative;
+    box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--line)}
+  .bar{height:38px;background:#F1F4F7;display:flex;align-items:center;padding:0 14px;
+    border-bottom:1px solid var(--line);gap:7px;position:relative}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dot.r{background:#FF5F57}.dot.y{background:#FEBC2E}.dot.g{background:#28C840}
+  .bar .t{position:absolute;left:0;right:0;text-align:center;font-size:12px;color:var(--muted);font-weight:500}
+
+  .stage{padding:30px 34px 26px;min-height:368px;display:flex;flex-direction:column;position:relative}
+  .scene{display:none;flex:1;flex-direction:column;animation:fade .35s ease}
+  .scene.on{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .logo{width:60px;height:60px}
+  .center{align-items:center;text-align:center;justify-content:center;gap:14px}
+  h2{font-size:20px;font-weight:600}
+  .sub{font-size:13.5px;color:var(--muted);line-height:1.6;max-width:380px}
+  .tag{font-size:15px;color:var(--o1);font-weight:600;margin-top:-4px}
+
+  .step-title{font-size:16px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .step-note{font-size:12.5px;color:var(--muted);margin-bottom:16px;line-height:1.55}
+  .pill{font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:#E7F0FD;color:var(--o1)}
+
+  .row{display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);
+    border-radius:12px;margin-bottom:10px;background:var(--cream)}
+  .row .ic{width:34px;height:34px;border-radius:9px;background:#fff;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .row .tx{flex:1;min-width:0}
+  .row .tx b{font-size:13.5px;font-weight:600;display:block}
+  .row .tx span{font-size:11.5px;color:var(--muted)}
+  .btn{border:none;border-radius:9px;padding:7px 14px;font-size:12.5px;font-weight:600;
+    cursor:pointer;background:linear-gradient(180deg,#4F8FEE,#2E7BE0 52%,#2A6FD0);color:#fff;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 1px 2px rgba(40,90,180,.25);transition:.15s;white-space:nowrap}
+  .btn:hover{filter:brightness(1.06)}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:none}
+  .btn.soft{background:linear-gradient(180deg,#FBFBFC,#EFF1F4 55%,#E5E8EC);
+    color:#5C636C;border:1px solid #D5D9DF;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+  .btn.done{background:#E6F6EE;color:var(--green);pointer-events:none;box-shadow:none}
+  .btn.disabled{opacity:.45;pointer-events:none;filter:grayscale(.35)}
+  .consent{display:flex;align-items:center;gap:11px;margin-top:11px}
+  .consent-status{font-size:12px;color:var(--muted)}
+  .consent-status.ok{color:var(--green);font-weight:500}
+
+  .modal{position:absolute;inset:0;background:rgba(22,32,52,.34);display:none;
+    align-items:center;justify-content:center;z-index:30;padding:18px}
+  .modal.show{display:flex}
+  .sheet{width:100%;max-width:430px;max-height:88%;background:#fff;border-radius:14px;
+    display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 50px rgba(20,30,55,.3)}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;
+    border-bottom:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink)}
+  .sheet-head .x{border:none;background:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1}
+  .sheet-body{overflow-y:auto;padding:14px 18px;font-size:12.5px;line-height:1.65;color:#444B54}
+  .sheet-body h4{font-size:13px;font-weight:600;color:var(--ink);margin:12px 0 4px}
+  .sheet-body p{margin:0 0 8px}
+  .sheet-body .lead{background:#EBF3FE;border:1px solid #CFE1F8;border-radius:9px;padding:9px 11px;color:#3A536F}
+  .sheet-foot{display:flex;gap:9px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--line)}
+  .btn.done::before{content:"✓ "}
+
+  .prog{height:8px;border-radius:6px;background:#E4EDFB;overflow:hidden;margin:6px 0 4px}
+  .prog>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--o2),var(--o1));
+    border-radius:6px;transition:width .2s linear}
+
+  .kbd{display:flex;gap:6px;justify-content:center;margin:8px 0 4px;flex-wrap:wrap}
+  .key{min-width:46px;height:42px;border-radius:9px;background:#fff;border:1px solid #D7DDE5;
+    box-shadow:0 2px 0 #DCE2EA;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:11px;color:#5A646F;transition:.2s}
+  .key small{font-size:9px;color:#99A3AF}
+  .key.sel{background:#E7F0FD;border-color:var(--o1);color:var(--o1);box-shadow:0 2px 0 #B6D2F4}
+  .key.flash{background:#E6F6EE;border-color:var(--green);color:var(--green);box-shadow:0 2px 0 #BfE8Cf}
+
+  .settings{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:6px}
+  .settings .sh{font-size:11.5px;color:var(--muted);padding:8px 12px;background:#F1F4F7;border-bottom:1px solid var(--line)}
+  .settings .si{display:flex;align-items:center;gap:9px;padding:9px 12px;font-size:12.5px}
+  .chk{width:17px;height:17px;border-radius:5px;border:1.5px solid #C3CBD4;cursor:pointer;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;transition:.15s}
+  .chk.on{background:var(--green);border-color:var(--green)}
+
+  .foot{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;
+    border-top:1px solid var(--line);background:#FAFBFC}
+  .dots{display:flex;gap:6px}
+  .pd{width:7px;height:7px;border-radius:50%;background:#DBE0E6;transition:.2s}
+  .pd.on{background:var(--o1);width:18px;border-radius:4px}
+  .nav{display:flex;gap:8px}
+  .hint{font-size:11.5px;color:var(--muted)}
+  .info{background:#EBF3FE;border:1px solid #CFE1F8;border-radius:10px;padding:11px 13px;
+    font-size:12px;color:#45607E;line-height:1.55;margin-top:auto}
+  .legend{font-size:11px;color:var(--muted);margin-top:14px;text-align:center}
+
+  .stage-logo{position:absolute;right:26px;top:18px;height:24px;width:auto;z-index:6}
+  .row .ic i{font-size:19px;color:var(--o1);display:inline-block;transform-origin:center}
+
+  /* 每个 icon 不同的循环微动画（页隐藏时 display:none 不会运行） */
+  .ic .ti-microphone{animation:icPulse 1.5s ease-in-out infinite}
+  .ic .ti-message-2{animation:icBob 2s ease-in-out infinite}
+  .ic .ti-accessible{animation:icSwing 2.6s ease-in-out infinite}
+  .ic .ti-package{animation:icDrop 1.9s ease-in-out infinite}
+  .ic .ti-volume{animation:icBeat 1.3s ease-in-out infinite}
+  .ic .ti-robot{animation:icTilt 2.2s ease-in-out infinite}
+  .ti-confetti{display:inline-block;transform-origin:center;animation:icPop 1.8s ease-in-out infinite}
+  @keyframes icPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+  @keyframes icBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  @keyframes icSwing{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg)}}
+  @keyframes icDrop{0%{transform:translateY(-2.5px)}50%{transform:translateY(2.5px)}100%{transform:translateY(-2.5px)}}
+  @keyframes icBeat{0%,100%{transform:scale(1)}20%{transform:scale(1.18)}45%{transform:scale(.92)}70%{transform:scale(1.12)}}
+  @keyframes icTilt{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}75%{transform:rotate(7deg)}}
+  @keyframes icPop{0%,100%{transform:scale(1) rotate(0)}40%{transform:scale(1.25) rotate(-8deg)}70%{transform:scale(1.1) rotate(6deg)}}
+
+  .advrow{display:flex;gap:8px;margin-top:6px}
+  .adv{opacity:0;animation:advIn .8s cubic-bezier(.32,1.45,.5,1) both}
+  .adv:nth-child(1){animation-delay:.18s}
+  .adv:nth-child(2){animation-delay:.38s}
+  .adv:nth-child(3){animation-delay:.58s}
+  @keyframes advIn{
+    0%{opacity:0;transform:translateY(22px) scale(.78);filter:blur(4px)}
+    55%{opacity:1;filter:blur(0)}
+    100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+  }
+
+  .ttswrap{width:100%;margin-bottom:12px}
+  .doc{position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;
+    padding:14px 18px;height:150px;overflow:hidden;font-size:14px;line-height:1.5;color:#3A342E}
+  .doc .dl{margin-bottom:9px}
+  .doc .dl.dim{color:#B8AE9F}
+  .doc .tgt{display:inline-block;position:relative;margin-bottom:9px}
+  .selbg{position:absolute;left:-3px;top:0;height:21px;width:0;background:#BFD9FF;
+    border-radius:3px;z-index:0;transition:width .9s ease}
+  .doc .w{position:relative;z-index:1;transition:color .15s,background .15s;border-radius:3px;padding:1px 0}
+  .doc .w.read{color:#1A57AB;background:#DCEAFC;box-shadow:0 0 0 2px #DCEAFC}
+  .speak{position:absolute;right:16px;top:38px;display:flex;align-items:center;gap:4px;opacity:0;transition:.25s;z-index:4}
+  .speak.on{opacity:1}
+  .speak .bars{display:flex;align-items:flex-end;gap:2px;height:18px}
+  .speak .bars i{width:2.6px;height:5px;background:var(--o1);border-radius:2px;animation:bar .6s ease-in-out infinite}
+  .speak .bars i:nth-child(2){animation-delay:.12s}.speak .bars i:nth-child(3){animation-delay:.24s}
+  .speak .bars i:nth-child(4){animation-delay:.36s}.speak .bars i:nth-child(5){animation-delay:.18s}
+  @keyframes bar{0%,100%{height:4px}50%{height:16px}}
+  .kbadge{position:absolute;left:50%;top:92px;transform:translateX(-50%) scale(.85);
+    background:#2A2622;color:#fff;font-size:14px;font-weight:600;padding:6px 13px;border-radius:10px;
+    opacity:0;transition:opacity .2s,transform .2s;z-index:4;display:flex;align-items:center;gap:7px}
+  .kbadge small{font-size:10px;color:#C9BDAD;font-weight:400}
+  .kbadge.on{opacity:1;transform:translateX(-50%) scale(1)}
+  .kbadge.pulse{animation:kp .28s 2}
+  @keyframes kp{50%{transform:translateX(-50%) scale(1.09)}}
+  .mouse{position:absolute;width:20px;height:20px;left:380px;top:130px;z-index:5;opacity:0;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));transition:left .85s ease,top .85s ease,opacity .3s,transform .12s}
+  .mouse.click{transform:scale(.78)}
+  .demohint{text-align:center;font-size:12px;color:var(--o1);margin-top:9px;font-weight:600}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>Dontype · 安装到上手 · 完整体验</h1>
+    <p>假设用户全新 Mac:没装 Claude Code / Codex,也没有 Premium / Enhanced 语音</p>
+  </div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="logoUpper" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#FFE6B4"/><stop offset="0.5" stop-color="#FFCD86"/><stop offset="1" stop-color="#F2B25A"/>
+    </linearGradient>
+    <linearGradient id="logoLower" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#F78A45"/><stop offset="0.5" stop-color="#EB5F27"/><stop offset="1" stop-color="#CE4A18"/>
+    </linearGradient>
+    <radialGradient id="logoShine" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs></svg>
+
+  <div class="frame">
+    <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="t" id="winTitle">Dontype</span></div>
+
+    <div class="stage">
+      <svg class="stage-logo" viewBox="0 0 490.1 149.8" aria-label="Easylii">
+        <g fill="#245072">
+          <path d="M63.1,90c-8.2,9.4-17.1,11.9-26.6,7.3l36.8-42.5c2.1-2.4,1.9-6-0.3-8.2c-0.7-0.7-1.4-1.4-2.2-2c-9.2-8-19.5-11.7-30.8-11.2c-11.3,0.5-20.9,5.2-28.7,14.3c-8.2,9.5-11.9,20-11,31.5c0.9,11.5,6.1,21.2,15.3,29.2s20.7,11.8,32.2,10.9c11.5-0.8,21.7-6.3,30.5-16.5l37-42.8l-15.7-14L63.1,90L63.1,90z M23.9,86.9c-3.2-4.3-4.6-8.8-4.4-13.5c0.2-4.7,2.2-9.2,5.9-13.4c3.1-3.6,7-6,11.5-7s9.2-0.2,14.2,2.5L23.9,86.9z"/>
+          <path d="M154,45.3c-6.3-7.9-15.2-11.9-26.6-11.9s-20.2,4.2-28,12.5c-7.8,8.3-11.7,18.5-11.7,30.6s3.9,22.3,11.7,30.6c7.8,8.3,17.1,12.5,28,12.5c11.4,0,20.3-4,26.6-11.9v3.6c0,3.3,2.7,6,6,6h9c3.3,0,6-2.7,6-6V41.7c0-3.3-2.7-6-6-6h-9c-3.3,0-6,2.7-6,6C154,41.7,154,45.3,154,45.3z M147.6,93c-4.3,4.3-9.7,6.4-16.2,6.4s-11.9-2.2-16.1-6.4s-6.4-9.8-6.4-16.6s2.1-12.2,6.4-16.5c4.2-4.3,9.6-6.4,16.1-6.4c6.5,0,11.9,2.2,16.2,6.4c4.3,4.3,6.4,9.8,6.4,16.5S151.9,88.7,147.6,93z"/>
+          <path d="M237.6,71.7c-4.1-1.6-8.3-2.9-12.4-3.9c-4.1-1-7.6-2.2-10.5-3.6c-2.9-1.4-4.3-3.1-4.3-5.3c0-2.1,0.9-3.7,2.7-4.9c1.8-1.2,4.1-1.8,6.8-1.8c4.4,0,7.9,1.5,10.5,4.4c1.8,2.1,4.9,2.6,7.3,1.3l7.2-3.9c3.4-1.8,4.2-6.4,1.6-9.2c-2.4-2.7-5.3-5-8.6-6.8c-5.4-3-11.5-4.5-18.1-4.5c-8.8,0-16.2,2.3-22.1,6.9c-5.9,4.6-8.9,11-8.9,19c0,5.3,1.4,9.8,4.3,13.3s6.4,6.1,10.5,7.7c4.1,1.6,8.3,3,12.4,4.1c4.1,1.1,7.6,2.3,10.5,3.7s4.3,3.1,4.3,5.3c0,4.7-3.8,7-11.2,7c-6.2,0-10.7-2-13.6-6c-1.8-2.4-5.2-3-7.8-1.6l-7.5,4.2c-3.1,1.8-4,5.8-1.9,8.7c6.6,9.1,16.8,13.7,30.9,13.7c9.4,0,17.1-2.3,23.4-6.8c6.2-4.5,9.4-10.9,9.4-19.3c0-5.5-1.4-10.2-4.3-13.9C245.2,75.9,241.7,73.3,237.6,71.7L237.6,71.7z"/>
+          <path d="M297.8,90.5l-19.8-51c-0.9-2.3-3.1-3.8-5.6-3.8h-9.8c-4.3,0-7.2,4.4-5.5,8.3l30.3,71.4c-2,5.5-5,8.8-8.3,11.3c-2.2,1.7-5,2.8-8.2,3.3c-3,0.5-5.2,2.9-5.2,5.9v7.9c0,3.5,3,6.2,6.5,6c7.6-0.6,14.2-2.9,19.7-7.1c7-5.3,12.6-13.7,16.9-25.4l26.8-73.6c1.4-3.9-1.5-8-5.6-8h-9.6c-2.6,0-4.9,1.7-5.7,4.1L297.8,90.5L297.8,90.5z"/>
+          <path d="M354.3,117.2h9c3.3,0,6-2.7,6-6V41.4l-21-20.9v90.7C348.3,114.5,351,117.2,354.3,117.2z"/>
+          <path d="M394.6,117.2h9c3.3,0,6-2.7,6-6V51.1h-21v60.1C388.6,114.5,391.2,117.2,394.6,117.2z"/>
+          <path d="M434.8,117.2h9c3.3,0,6-2.7,6-6V51.1h-21v60.1C428.8,114.5,431.5,117.2,434.8,117.2z"/>
+        </g>
+        <g fill="#E75074">
+          <path d="M399,0c-3.5,0-6.5,1.3-9,3.9c-2.6,2.6-3.8,5.7-3.8,9.1s1.3,6.5,3.8,9.1c2.5,2.6,5.6,3.8,9,3.8s6.7-1.3,9.2-3.8s3.8-5.6,3.8-9.1s-1.3-6.5-3.8-9.1S402.6,0,399,0z"/>
+          <path d="M439.3,25.9c3.6,0,6.7-1.3,9.2-3.8s3.8-5.6,3.8-9.1s-1.3-6.5-3.8-9.1S442.9,0,439.3,0s-6.5,1.3-9,3.9c-2.6,2.6-3.8,5.6-3.8,9.1s1.3,6.5,3.8,9.1C432.8,24.6,435.8,25.9,439.3,25.9z"/>
+          <path d="M348.3,20.5c1.5,1.1,2.8,2.2,4.1,3.2c1.4,1,2.8,2,4.1,3.1c1.4,1,2.8,1.9,4.2,2.9l4.2,2.7c5.6,3.4,11.5,6.2,17.4,8.5c11.9,4.6,24.3,6.8,36.9,6.8c12.5,0,24.9-2.3,36.8-6.9c5.9-2.3,11.8-5.1,17.4-8.5l4.2-2.6c1.4-0.9,2.7-1.9,4.2-2.9c1.3-1,2.7-2,4.1-3c1.3-1.1,2.7-2.2,4.2-3.2c-2.5,12.7-11.7,24.5-24.6,32.8c-6.4,4.2-13.8,7.5-21.7,9.8c-7.9,2.3-16.3,3.4-24.7,3.4c-8.4,0-16.8-1.2-24.6-3.4c-7.9-2.2-15.3-5.6-21.7-9.8C360.1,45,350.8,33.2,348.3,20.5L348.3,20.5z"/>
+        </g>
+      </svg>
+
+      <!-- 1 欢迎 -->
+      <div class="scene on center" data-title="Dontype">
+        <svg class="logo" viewBox="0 0 18 17.9" id="bigLogo1" style="width:66px;height:66px"></svg>
+        <h2 style="font-size:23px">Welcome to Dontype</h2>
+        <div class="tag">Stop typing. Just talk and listen.</div>
+        <div class="sub">说话即成文字,选中即可朗读。<br>全程本地识别,隐私不出本机。点「下一步」开始。</div>
+      </div>
+
+      <!-- 2 隐私 -->
+      <div class="scene" data-title="Dontype · 隐私" data-gate="privacy">
+        <div class="step-title"><i class="ti ti-shield-lock" style="color:var(--o1);font-size:20px"></i> 隐私优先 <span class="pill">默认安全</span></div>
+        <div class="step-note">开始前先讲清楚:我们怎么对待你的声音和数据。</div>
+        <div class="row"><div class="ic"><i class="ti ti-microphone-off"></i></div>
+          <div class="tx"><b>声音不离开你的 Mac</b><span>语音在本机识别,绝不上传、不录存</span></div>
+          <i class="ti ti-check" style="color:var(--green);font-size:18px"></i></div>
+        <div class="row"><div class="ic"><i class="ti ti-eye-off"></i></div>
+          <div class="tx"><b>无跟踪 · 无分析 · 无账号</b><span>不收集任何个人数据,不出售数据</span></div>
+          <i class="ti ti-check" style="color:var(--green);font-size:18px"></i></div>
+        <div class="row"><div class="ic"><i class="ti ti-key"></i></div>
+          <div class="tx"><b>AI 整理用你自己的账号</b><span>开启时转写文字经你自己的 Claude / Codex 处理,可随时关闭</span></div>
+          <i class="ti ti-check" style="color:var(--green);font-size:18px"></i></div>
+        <div class="info">符合 GDPR、CCPA 等隐私法规。</div>
+        <div class="consent">
+          <button class="btn soft" onclick="openPolicy()"><i class="ti ti-file-text"></i> 阅读隐私政策</button>
+          <span class="consent-status" id="consentStatus">阅读并同意后才能继续</span>
+        </div>
+      </div>
+
+      <!-- 2 STT 权限 -->
+      <div class="scene" data-title="Dontype · 设置向导">
+        <div class="step-title">① 基础权限 <span class="pill">语音输入 STT</span></div>
+        <div class="step-note">这三项给齐,就能开始说话转文字。点按钮逐个允许。</div>
+        <div class="row"><div class="ic"><i class="ti ti-microphone"></i></div><div class="tx"><b>麦克风</b><span>录下你的声音</span></div>
+          <button class="btn soft" onclick="grant(this)">请求</button></div>
+        <div class="row"><div class="ic"><i class="ti ti-message-2"></i></div><div class="tx"><b>语音识别</b><span>把语音转写为文字</span></div>
+          <button class="btn soft" onclick="grant(this)">请求</button></div>
+        <div class="row"><div class="ic"><i class="ti ti-accessible"></i></div><div class="tx"><b>辅助功能</b><span>监听热键、把结果粘到光标处</span></div>
+          <button class="btn soft" onclick="openAX()">打开设置</button></div>
+
+        <div class="settings" id="axPane" style="display:none">
+          <div class="sh">系统设置 ▸ 隐私与安全性 ▸ 辅助功能</div>
+          <div class="si"><span class="chk" id="axChk" onclick="tickAX()"></span> Dontype</div>
+        </div>
+      </div>
+
+      <!-- 3 模型下载 -->
+      <div class="scene" data-title="Dontype · 设置向导">
+        <div class="step-title">② 下载识别模型 <span class="pill">一次性</span></div>
+        <div class="step-note">最高精度的本地模型(large-v3-turbo,约 1.5GB)。下载时先用系统识别顶着,不耽误用。</div>
+        <div class="row" style="background:#fff">
+          <div class="ic"><i class="ti ti-package"></i></div>
+          <div class="tx"><b>large-v3-turbo</b><span id="dlStat">尚未下载 · 1.5 GB</span>
+            <div class="prog"><i id="dlBar"></i></div></div>
+          <button class="btn soft" id="dlBtn" onclick="download()">下载</button></div>
+        <div class="info">下载完成前,Dontype 自动用 Apple 系统识别保证你能立刻开口。完成后无缝切到本地高精度模型。</div>
+      </div>
+
+      <!-- 4 热键确认 -->
+      <div class="scene" data-title="Dontype · 开始/结束热键">
+        <div class="step-title">③ 确认开始/结束热键 <span class="pill">可视化测试</span></div>
+        <div class="step-note"><b>双击 Control</b> 开始说话 · <b>单击 Control</b> 结束并粘贴 · <b>Esc</b> 取消。<br>
+        在键盘上试一下,确认手感后再生效。</div>
+        <div class="kbd">
+          <div class="key" id="kFn">fn<small>地球</small></div>
+          <div class="key sel" id="kCtl">control<small>选中</small></div>
+          <div class="key" id="kOpt">option</div>
+          <div class="key" id="kCmd" style="opacity:.5">⌘<small>command</small></div>
+        </div>
+        <div style="text-align:center;margin-top:8px">
+          <button class="btn ghost" id="testBtn" onclick="testKey()"><i class="ti ti-player-play"></i> 双击 Control 测试</button>
+          <div class="hint" id="testHint" style="margin-top:8px">点上面按钮模拟双击</div>
+        </div>
+      </div>
+
+      <!-- 5 TTS 朗读 -->
+      <div class="scene" data-title="Dontype · 朗读设置">
+        <div class="step-title">④ 朗读选中文字 <span class="pill">语音朗读 TTS · 可选</span></div>
+        <div class="step-note"><b>双击 右⌘</b> 从选中处往下朗读 · 单击暂停/继续 · Esc 停止。嗓音/语速自动选最佳。</div>
+
+        <div class="ttswrap">
+          <div class="doc">
+            <div class="dl">会议纪要 · Q3 计划</div>
+            <div class="tgt" id="ttsTgt"><span class="selbg" id="ttsSel"></span><span class="w">本周五</span> <span class="w">发布</span> <span class="w">公测</span> <span class="w">版本。</span></div>
+            <div class="dl dim">记得同步给设计团队。</div>
+            <div class="speak" id="ttsSpeak"><span class="bars"><i></i><i></i><i></i><i></i><i></i></span><i class="ti ti-volume" style="font-size:15px;color:var(--o1)"></i></div>
+            <div class="kbadge" id="ttsKey">⌘ ⌘ <small>双击 右⌘</small></div>
+            <div class="mouse" id="ttsMouse"><svg viewBox="0 0 24 24"><path d="M5 2.5l5.5 16.5 2.6-6.8 6.9-2.6z" fill="#2A2622" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+          </div>
+          <div class="demohint" id="ttsHint">① 选中一段文字</div>
+        </div>
+
+        <div class="row"><div class="ic"><i class="ti ti-volume"></i></div>
+          <div class="tx"><b>高质量嗓音</b><span id="voiceStat">未检测到 Premium / Enhanced 语音 · 可用系统默认顶着</span></div>
+          <button class="btn soft" id="voiceBtn" onclick="getVoice()">下载语音</button></div>
+        <div class="settings" id="voicePane" style="display:none">
+          <div class="sh">系统设置 ▸ 辅助功能 ▸ 朗读内容 ▸ 系统嗓音</div>
+          <div class="si"><span class="chk" id="vChk" onclick="tickVoice()"></span> Premium 嗓音(下载后自动启用)</div>
+        </div>
+      </div>
+
+      <!-- 6 AI 整理 -->
+      <div class="scene" data-title="Dontype · 设置向导">
+        <div class="step-title">⑤ AI 整理 <span class="pill">可选 · 自动检测</span></div>
+        <div class="step-note">装了 Claude Code 或 Codex 会自动启用,顺一遍口语、去掉「嗯/那个」、补标点。</div>
+        <div class="row"><div class="ic"><i class="ti ti-robot"></i></div>
+          <div class="tx"><b>Claude Code / Codex</b><span style="color:var(--muted)">未检测到,不影响基本使用</span></div>
+          <span class="pill" style="background:#F0E7DA;color:#86735A">跳过</span></div>
+        <div class="info">现在 Dontype 直接输出干净的原始转写,完全可用。日后装了 Claude Code,重开即自动接上 AI 整理,用你自己的订阅,Dontype 不收云端费。</div>
+      </div>
+
+      <!-- 7 完成 -->
+      <div class="scene center" data-title="Dontype">
+        <svg class="logo" viewBox="0 0 18 17.9" id="bigLogo7" style="width:68px;height:68px"></svg>
+        <h2>一切就绪 <i class="ti ti-confetti" style="color:var(--o1)"></i></h2>
+        <div class="sub">在任何 App 里 <b style="color:var(--o1)">双击 Control</b> 开始说话,<b style="color:var(--o1)">单击 Control</b> 结束,文字直接落到光标处。</div>
+        <div class="advrow">
+          <span class="pill adv">菜单栏常驻</span><span class="pill adv">本地识别</span><span class="pill adv">买断永更</span>
+        </div>
+      </div>
+
+    </div><!-- /stage -->
+
+    <div class="foot">
+      <div class="dots" id="dots"></div>
+      <div class="nav">
+        <button class="btn ghost" id="back" onclick="go(-1)">上一步</button>
+        <button class="btn" id="next" onclick="go(1)">下一步</button>
+      </div>
+    </div>
+
+    <div class="modal" id="policyModal">
+      <div class="sheet">
+        <div class="sheet-head">隐私政策 · Dontype<button class="x" onclick="closePolicy()"><i class="ti ti-x"></i></button></div>
+        <div class="sheet-body">
+          <p style="color:var(--muted);font-size:11.5px">Easylii 出品 · 生效 2026-06-17</p>
+          <p class="lead">你的声音永不离开这台 Mac。零收集、零追踪、无账号、无埋点 —— 这个 App 从设计上就让我们接触不到你的数据。</p>
+          <h4>1. 语音转写(本机完成)</h4>
+          <p>听写时音频在你的 Mac 本地转成文字(whisper / Apple 识别),只在转写那一刻留在内存,随后丢弃,绝不上传。</p>
+          <h4>2. 可选 AI 整理(用你自己的账号)</h4>
+          <p>开启时仅把<b>转写文字</b>(非音频)发到你配置的服务商(Anthropic / OpenAI),走<b>你自己的 key 或订阅</b>,受其隐私政策约束。不配置则不发送。可随时关闭。</p>
+          <h4>3. 我们不做的事</h4>
+          <p>不在服务器收集/存储你的音频或文字;无分析、埋点、崩溃上报、追踪;无账号、无广告;不出售、不共享数据;不嵌入收集数据的第三方 SDK。</p>
+          <h4>4. 本机文件</h4>
+          <p>设置、本地日志、上次转写结果都只存在你的 Mac(<code>~/.config/siyu/</code>),不会传给我们,可随时删除或卸载清除。</p>
+          <h4>5. macOS 权限</h4>
+          <p>麦克风(采集语音)、语音识别(本机转写)、辅助功能(监听热键 + 粘贴到光标)。仅用于上述功能,可随时在系统设置撤销。</p>
+          <h4>6. 你的权利(GDPR / CCPA 等)</h4>
+          <p>我们不持有你的个人数据,这边无可访问/删除项;你完全掌控本机数据。AI 服务商处理的数据请直接向其申请。</p>
+          <h4>7. 联系</h4>
+          <p>疑问或请求:<b>support@easylii.com</b></p>
+        </div>
+        <div class="sheet-foot">
+          <button class="btn ghost" onclick="closePolicy()">关闭</button>
+          <button class="btn" onclick="agreePolicy()">我已阅读,同意</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">交互演示 · 点按钮模拟真实授权 / 下载 / 测试 · 共 8 屏</div>
+
+<script>
+  const LOGO = `
+    <path d="M14.8,14.8s.1,0,.2-.1c1.8-1.5,3-3.5,3-5.9-1,.7-4.2,3-9,3C4.21,11.7,.92,9.32,.01,8.51c0,.06-.01,.13-.01,.19v.1c0,4.3,4,7.7,9,7.7,.4,0,1.1,0,2.1-.1,1.3,.8,3.1,1.5,4.7,1.5,.5,0,.7-.4,.4-.8-.5-.6-1.1-1.6-1.4-2.3Z" fill="url(#logoLower)"/>
+    <path d="M18,7.8C18,3.5,13.9,0,9,0h-.1C4.07,0,.13,3.3,.01,7.51c.91,.81,4.2,3.19,8.99,3.29,4.8,0,8-2.3,9-3Z" fill="url(#logoUpper)"/>
+    <ellipse cx="6" cy="2.9" rx="3.6" ry="1.7" fill="url(#logoShine)" opacity="0.8"/>`;
+  ['bigLogo1','bigLogo7'].forEach(id=>document.getElementById(id).innerHTML=LOGO);
+
+  const scenes=[...document.querySelectorAll('.scene')];
+  const dots=document.getElementById('dots');
+  scenes.forEach((_,i)=>{const d=document.createElement('span');d.className='pd'+(i==0?' on':'');dots.appendChild(d)});
+  let cur=0;
+  let privacyAgreed=false;
+  function openPolicy(){document.getElementById('policyModal').classList.add('show');}
+  function closePolicy(){document.getElementById('policyModal').classList.remove('show');}
+  function agreePolicy(){
+    privacyAgreed=true;closePolicy();
+    const s=document.getElementById('consentStatus');
+    s.textContent='✓ 已阅读并同意隐私政策';s.classList.add('ok');
+    updateNextGate();
+  }
+  function updateNextGate(){
+    const next=document.getElementById('next');
+    const gated=scenes[cur].dataset.gate==='privacy'&&!privacyAgreed;
+    next.classList.toggle('disabled',gated);next.disabled=gated;
+    next.title=gated?'请先勾选「我已阅读隐私政策」':'';
+  }
+  function render(){
+    scenes.forEach((s,i)=>s.classList.toggle('on',i==cur));
+    [...dots.children].forEach((d,i)=>d.classList.toggle('on',i==cur));
+    document.getElementById('winTitle').textContent=scenes[cur].dataset.title;
+    document.getElementById('back').style.visibility=cur==0?'hidden':'visible';
+    document.getElementById('next').textContent=cur==scenes.length-1?'完成 ✓':'下一步';
+    // 重新触发当前页的流体出场动画
+    scenes[cur].querySelectorAll('.adv').forEach(el=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});
+    updateNextGate();
+  }
+  function go(d){
+    if(d>0&&scenes[cur].dataset.gate==='privacy'&&!privacyAgreed) return;
+    cur=Math.max(0,Math.min(scenes.length-1,cur+d));render();
+  }
+
+  function grant(b){b.className='btn done';b.textContent='已允许';}
+  function openAX(){document.getElementById('axPane').style.display='block';}
+  function tickAX(){const c=document.getElementById('axChk');c.classList.add('on');c.textContent='✓';
+    const btn=[...document.querySelectorAll('#axPane')][0].closest('.scene').querySelectorAll('.btn')[2];
+    btn.className='btn done';btn.textContent='已授权';}
+
+  function download(){
+    const bar=document.getElementById('dlBar'),btn=document.getElementById('dlBtn'),st=document.getElementById('dlStat');
+    btn.textContent='下载中';btn.style.pointerEvents='none';let p=0;
+    const t=setInterval(()=>{p+=4+Math.random()*6;if(p>=100){p=100;clearInterval(t);
+      st.textContent='已就绪 · 本地高精度模型';btn.className='btn done';btn.textContent='完成';}
+      bar.style.width=p+'%';st.textContent=p<100?('下载中… '+Math.floor(p)+'%'):st.textContent;},180);
+  }
+
+  function testKey(){
+    const k=document.getElementById('kCtl'),h=document.getElementById('testHint'),b=document.getElementById('testBtn');
+    k.classList.remove('sel');let n=0;
+    const blink=setInterval(()=>{k.classList.toggle('flash');n++;if(n>=4){clearInterval(blink);
+      k.classList.add('flash');h.innerHTML='<b style="color:#1FA463">✓ 检测到双击 Control,已确认生效</b>';
+      b.className='btn done';b.textContent='已确认';}},160);
+  }
+
+  function getVoice(){document.getElementById('voicePane').style.display='block';}
+  function tickVoice(){const c=document.getElementById('vChk');c.classList.add('on');c.textContent='✓';
+    document.getElementById('voiceStat').textContent='已启用 Premium 嗓音';
+    const b=document.getElementById('voiceBtn');b.className='btn done';b.textContent='已就绪';}
+
+  render();
+
+  // 朗读 demo:鼠标选中文字 → 双击右⌘ → 逐词朗读,循环播放
+  function ttsLoop(){
+    const m=document.getElementById('ttsMouse'),sel=document.getElementById('ttsSel'),
+          key=document.getElementById('ttsKey'),spk=document.getElementById('ttsSpeak'),
+          hint=document.getElementById('ttsHint'),ws=[...document.querySelectorAll('#ttsTgt .w')];
+    if(!m) return;
+    m.style.opacity=0;m.style.left='380px';m.style.top='130px';m.classList.remove('click');
+    sel.style.width='0';key.className='kbadge';spk.classList.remove('on');
+    ws.forEach(w=>w.classList.remove('read'));hint.textContent='① 选中一段文字';
+    setTimeout(()=>{m.style.opacity=1;m.style.left='10px';m.style.top='40px';},500);
+    setTimeout(()=>{m.style.left='150px';sel.style.width='calc(100% + 6px)';},1600);
+    setTimeout(()=>{hint.textContent='② 双击 右 ⌘';m.style.left='210px';m.style.top='90px';},2700);
+    setTimeout(()=>{key.className='kbadge on pulse';},3200);
+    setTimeout(()=>{m.classList.add('click');},3350);
+    setTimeout(()=>{m.classList.remove('click');},3550);
+    setTimeout(()=>{spk.classList.add('on');hint.textContent='③ 自动往下朗读';
+      ws.forEach((w,i)=>setTimeout(()=>w.classList.add('read'),i*270));},3800);
+    setTimeout(()=>{spk.classList.remove('on');key.className='kbadge';},6400);
+    setTimeout(ttsLoop,7400);
+  }
+  ttsLoop();
+
+  document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')go(1);if(e.key==='ArrowLeft')go(-1);});
+</script>
+</body>
+</html>
