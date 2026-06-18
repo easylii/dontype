@@ -1,0 +1,5 @@
+/* English system shows the Dontype brand (matches Info.plist base values) */
+CFBundleName = "Dontype";
+CFBundleDisplayName = "Dontype";
+NSMicrophoneUsageDescription = "Dontype uses the microphone for voice dictation.";
+NSSpeechRecognitionUsageDescription = "Dontype uses speech recognition to transcribe your voice into text.";

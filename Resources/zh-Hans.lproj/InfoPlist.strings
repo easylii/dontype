@@ -1,0 +1,5 @@
+/* 中文系统下显示「丝语」品牌，英文系统沿用 Info.plist 里的 Dontype */
+CFBundleName = "丝语";
+CFBundleDisplayName = "丝语";
+NSMicrophoneUsageDescription = "丝语需要使用麦克风进行语音输入。";
+NSSpeechRecognitionUsageDescription = "丝语使用语音识别将你的语音转写为文字。";

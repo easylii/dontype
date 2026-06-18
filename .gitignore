@@ -1,0 +1,21 @@
+# Build artifacts
+.build/
+SiYu.app/
+dist-dmg/
+*.dmg
+icon-1024.png
+
+# Large local dependencies (not project source)
+# upstream whisper.cpp checkout
+whisper-src/
+# bundled CMake.app etc.
+tools/
+# 1.5GB speech model — downloaded at runtime
+whisper/*.bin
+
+# Signing secrets — NEVER commit
+.cert/
+
+# macOS
+.DS_Store
+**/.DS_Store
