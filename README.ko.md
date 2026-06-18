@@ -47,7 +47,7 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 | 등급 | 언어 | 비고 |
 |------|-----------|-------|
-| **주력**(드롭다운에 포함, 공식 지원) | English · Chinese (Mandarin) · 日本語 · 한국어 · Spanish · French · German · Italian · Portuguese | turbo ≈ full large-v3 수준; 안심하고 홍보 가능 |
+| **주력**(드롭다운에 포함, 공식 지원) | English · Chinese (Mandarin) · 日本語 · 한국어 · Spanish · French | turbo ≈ full large-v3 수준; 안심하고 홍보 가능 |
 | 작동하나 주의 필요 | Cantonese · Thai · Vietnamese 등 | turbo는 광둥어/태국어에서 눈에 띄게 품질이 떨어짐 → `whisperModel`을 `large-v3`로 전환; 드롭다운에는 없지만 자동 감지로는 여전히 인식됨 |
 | 약함(홍보 안 함) | 저자원(low-resource) 언어 | 오류율이 높고 환각(hallucination)이 발생하기 쉬움 |
 
@@ -104,7 +104,7 @@ AI 정리 백엔드는 우선순위에 따라 자동 선택됩니다: `Claude AP
 | `cleanup` | AI 정리 활성화(군더더기 말이 감지될 때만 자동 실행) | `true` |
 | `autoPaste` | 결과 후 커서 위치에 자동 붙여넣기 | `true` |
 | `whisperModel` | whisper 모델 id(`large-v3-turbo` / `large-v3` / `medium` / `small`) | `large-v3-turbo` |
-| `recognitionLang` | 인식 언어(`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr` / `de` / `it` / `pt`) | `auto` |
+| `recognitionLang` | 인식 언어(`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr`) | `auto` |
 | `uiLang` | 인터페이스 언어(`auto` / `zh` / `en`) | `auto` |
 | `readKey` | 소리 내어 읽기 트리거 키(`control`/`fn`/`rightCommand`/`rightOption`/`option`) | `rightCommand` |
 | `readVoice` | 소리 내어 읽기 음성 id(비어 있으면 텍스트 언어에 맞춰 프리미엄 음성 자동 선택) | 비어 있음 |

@@ -47,7 +47,7 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 | Tier | Languages | Notes |
 |------|-----------|-------|
-| **Featured** (in dropdown, officially supported) | English · Chinese (Mandarin) · 日本語 · 한국어 · Spanish · French · German · Italian · Portuguese | turbo ≈ full large-v3; safe to advertise |
+| **Featured** (in dropdown, officially supported) | English · Chinese (Mandarin) · 日本語 · 한국어 · Spanish · French | turbo ≈ full large-v3; safe to advertise |
 | Works, with caveats | Cantonese · Thai · Vietnamese, etc. | turbo degrades noticeably on Cantonese/Thai → switch `whisperModel` to `large-v3`; not in the dropdown, but auto-detect still recognizes them |
 | Weak (not advertised) | low-resource languages | higher error rate, hallucination-prone |
 
@@ -104,7 +104,7 @@ The AI cleanup backend is auto-selected by priority: `Claude API (fastest) → C
 | `cleanup` | enable AI cleanup (auto-triggers only when fillers detected) | `true` |
 | `autoPaste` | auto-paste at cursor after a result | `true` |
 | `whisperModel` | whisper model id (`large-v3-turbo` / `large-v3` / `medium` / `small`) | `large-v3-turbo` |
-| `recognitionLang` | recognition language (`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr` / `de` / `it` / `pt`) | `auto` |
+| `recognitionLang` | recognition language (`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr`) | `auto` |
 | `uiLang` | interface language (`auto` / `zh` / `en`) | `auto` |
 | `readKey` | read-aloud trigger key (`control`/`fn`/`rightCommand`/`rightOption`/`option`) | `rightCommand` |
 | `readVoice` | read-aloud voice id (empty = auto-pick Premium by text language) | empty |

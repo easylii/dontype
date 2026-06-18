@@ -48,9 +48,6 @@ enum Whisper {
         ("ko", "韩语", "Korean"),
         ("es", "西班牙语", "Spanish"),
         ("fr", "法语", "French"),
-        ("de", "德语", "German"),
-        ("it", "意大利语", "Italian"),
-        ("pt", "葡萄牙语", "Portuguese"),
     ]
 
     static func languageDisplay(_ code: String) -> String {

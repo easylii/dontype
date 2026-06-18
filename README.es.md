@@ -47,7 +47,7 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 | Nivel | Idiomas | Notas |
 |------|-----------|-------|
-| **Destacados** (en el desplegable, con soporte oficial) | English · Chinese (Mandarin) · 日本語 · 한국어 · Spanish · French · German · Italian · Portuguese | turbo ≈ large-v3 completo; seguro para promocionar |
+| **Destacados** (en el desplegable, con soporte oficial) | English · Chinese (Mandarin) · 日本語 · 한국어 · Spanish · French | turbo ≈ large-v3 completo; seguro para promocionar |
 | Funciona, con salvedades | Cantonese · Thai · Vietnamese, etc. | turbo se degrada notablemente en cantonés/tailandés → cambia `whisperModel` a `large-v3`; no está en el desplegable, pero la detección automática igualmente los reconoce |
 | Débil (no se promociona) | idiomas de pocos recursos | mayor tasa de error, propensos a alucinaciones |
 
@@ -104,7 +104,7 @@ Campos de `~/.config/siyu/config.json`:
 | `cleanup` | activa la limpieza con IA (se dispara automáticamente solo cuando se detectan muletillas) | `true` |
 | `autoPaste` | pega automáticamente en el cursor tras un resultado | `true` |
 | `whisperModel` | id del modelo de whisper (`large-v3-turbo` / `large-v3` / `medium` / `small`) | `large-v3-turbo` |
-| `recognitionLang` | idioma de reconocimiento (`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr` / `de` / `it` / `pt`) | `auto` |
+| `recognitionLang` | idioma de reconocimiento (`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr`) | `auto` |
 | `uiLang` | idioma de la interfaz (`auto` / `zh` / `en`) | `auto` |
 | `readKey` | tecla de activación de la lectura en voz alta (`control`/`fn`/`rightCommand`/`rightOption`/`option`) | `rightCommand` |
 | `readVoice` | id de voz para la lectura en voz alta (vacío = elección automática de Premium según el idioma del texto) | vacío |

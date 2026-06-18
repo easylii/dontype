@@ -47,7 +47,7 @@ Privacy-first 的 Mac 语音输入 + 朗读工具，by **Easylii**。
 
 | 档位 | 语言 | 说明 |
 |------|------|------|
-| **主推**（下拉可选、官方支持） | English · 中文(普通话) · 日本語 · 한국어 · Spanish · French · German · Italian · Portuguese | turbo ≈ 完整 large-v3，可放心宣传 |
+| **主推**（下拉可选、官方支持） | English · 中文(普通话) · 日本語 · 한국어 · Spanish · French | turbo ≈ 完整 large-v3，可放心宣传 |
 | 可用但掉点 | 粤语 · 泰语 · 越南语等 | turbo 在粤语/泰语明显变差 → 想要就把 `whisperModel` 换 `large-v3`；不在主推下拉里，靠 auto 也能认 |
 | 弱（不宣传） | 低资源语言 | 错误率高、易幻觉 |
 
@@ -104,7 +104,7 @@ AI 清洗后端按优先级自动选：`Claude API（最快）→ Claude Code �
 | `cleanup` | 是否开启 AI 清洗（自动判断口水词才整理） | `true` |
 | `autoPaste` | 出结果后自动粘贴到光标 | `true` |
 | `whisperModel` | whisper 模型 id（`large-v3-turbo` / `large-v3` / `medium` / `small`） | `large-v3-turbo` |
-| `recognitionLang` | 识别语言（`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr` / `de` / `it` / `pt`） | `auto` |
+| `recognitionLang` | 识别语言（`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr`） | `auto` |
 | `uiLang` | 界面语言（`auto` / `zh` / `en`） | `auto` |
 | `readKey` | 朗读触发键（`control`/`fn`/`rightCommand`/`rightOption`/`option`） | `rightCommand` |
 | `readVoice` | 朗读嗓音 id（空=按文字语言自动挑 Premium） | 空 |

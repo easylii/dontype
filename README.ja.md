@@ -47,7 +47,7 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 | 区分 | 言語 | 備考 |
 |------|-----------|-------|
-| **主要**（ドロップダウン内、公式サポート） | English · Chinese (Mandarin) · 日本語 · 한국어 · Spanish · French · German · Italian · Portuguese | turbo ≈ フルの large-v3；安心して宣伝可能 |
+| **主要**（ドロップダウン内、公式サポート） | English · Chinese (Mandarin) · 日本語 · 한국어 · Spanish · French | turbo ≈ フルの large-v3；安心して宣伝可能 |
 | 動作するが注意あり | Cantonese · Thai · Vietnamese など | turbo は広東語/タイ語で明らかに精度が落ちる → `whisperModel` を `large-v3` に切り替え；ドロップダウンには無いが自動検出は認識する |
 | 弱い（宣伝対象外） | 低リソース言語 | エラー率が高く、ハルシネーションが起きやすい |
 
@@ -104,7 +104,7 @@ AI整文のバックエンドは優先順位に従って自動選択されます
 | `cleanup` | AI整文を有効化（フィラー検出時のみ自動発動） | `true` |
 | `autoPaste` | 結果が出たらカーソル位置に自動ペースト | `true` |
 | `whisperModel` | whisper モデルID（`large-v3-turbo` / `large-v3` / `medium` / `small`） | `large-v3-turbo` |
-| `recognitionLang` | 認識言語（`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr` / `de` / `it` / `pt`） | `auto` |
+| `recognitionLang` | 認識言語（`auto` / `en` / `zh` / `ja` / `ko` / `es` / `fr`） | `auto` |
 | `uiLang` | インターフェース言語（`auto` / `zh` / `en`） | `auto` |
 | `readKey` | 読み上げのトリガーキー（`control`/`fn`/`rightCommand`/`rightOption`/`option`） | `rightCommand` |
 | `readVoice` | 読み上げの音声ID（空 = テキスト言語に応じてプレミアム音声を自動選択） | 空 |
