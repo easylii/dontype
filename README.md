@@ -13,6 +13,25 @@ Privacy-first 的 Mac 语音输入 + 朗读工具，by **Easylii**。
   → 自动粘贴到刚才的输入框
 ```
 
+## Demo
+
+**交互式安装流程演示** —— 在浏览器打开 [`design/dontype-install-flow.html`](design/dontype-install-flow.html),点一遍完整首启体验(Welcome → 隐私同意 → 权限 → 模型 → 热键 → 朗读 → AI → 完成,共 8 屏,含朗读动画演示)。
+> 公开后可用 GitHub Pages 托管成一个在线链接;也可在此放真实使用的 GIF（听写 / 朗读 / 剪贴历史）。录制：`Cmd+Shift+5` 录屏,再用 Gifski / Kap 转 GIF。
+
+## 支持的识别语言
+
+> **关键:不需要"多语言识别包"。** 一个 whisper 模型就覆盖约 99 种语言 —— 设定语言或开自动检测即可,不存在按语言下载多个识别模型。
+
+| 档位 | 语言 | 说明 |
+|------|------|------|
+| **强**（可主推） | English · 中文(普通话) · 日本語 · 한국어 · Spanish · French · German · Italian · Portuguese | turbo ≈ 完整 large-v3 |
+| **可用(有保留)** | 粤语 Cantonese · Thai · Vietnamese · Hindi · Russian … | **turbo 在粤语/泰语上明显掉点 → 换 `large-v3`** |
+| **弱**（不建议宣传） | 低资源语言 | 错误率高、易幻觉 |
+
+- **turbo vs large-v3**:默认 `large-v3-turbo` 快、对高资源语言≈满血;但**低资源语言(尤其粤语、泰语)会掉**。要更好的多语言精度,把 `whisperModel` 换成 `large-v3`。
+- **自动检测**:设 `recognitionLang: "auto"`,whisper 自动判断你说的语言 —— 做多语言时推荐。
+- **界面语言**(菜单/向导)和识别语言是两回事:目前中/英,其它语言回退英文。日本语日本語 / 韩语等 UI 需要时再加翻译,渐进即可。
+
 ## 安装
 
 **分发安装（推荐）**：`./make-dmg.sh` 打出 `Dontype.dmg`（内含 `install.command` / `PRIVACY.md` / 安装说明）。装机时右键点 DMG 里的 **install.command** →「打开」，脚本自动拷到 `/Applications`、去隔离（之后直接双击）、写默认配置并启动。
