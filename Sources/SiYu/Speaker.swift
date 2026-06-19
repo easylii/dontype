@@ -124,6 +124,13 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
         return bestQuality(candidates) ?? AVSpeechSynthesisVoice(language: voiceLocale(for: prefix))
     }
 
+    /// 朗读设置「主要语言」用：已装嗓音覆盖的语言前缀（常用的排前，其余按字母）。
+    static func installedLanguagePrefixes() -> [String] {
+        let installed = Set(AVSpeechSynthesisVoice.speechVoices().map { String($0.language.prefix(2)) })
+        let preferred = ["zh", "en", "ja", "ko", "es", "fr"]
+        return preferred.filter(installed.contains) + installed.subtracting(preferred).sorted()
+    }
+
     /// 菜单用：可选的高质量嗓音（Premium/Enhanced），按质量、语言排序。
     static func premiumVoices() -> [AVSpeechSynthesisVoice] {
         AVSpeechSynthesisVoice.speechVoices()

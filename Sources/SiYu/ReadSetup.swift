@@ -20,7 +20,7 @@ final class ReadSetup: NSObject, NSWindowDelegate {
     private var keyboard: KeyboardRowView!
     private var keyStatus: NSTextField!
     private var voiceIDs: [String] = []        // 与 voicePopup 各项一一对应（"" = 自动）
-    private let langCodes = ["auto", "zh", "en", "ja", "ko", "es", "fr"]
+    private var langCodes: [String] = ["auto"] // 与 langPopup 各项对应；build() 时按已装嗓音动态填充
     private let speeds: [Double] = [0.4, 0.5, 0.6, 0.7]
 
     func show() {
@@ -132,13 +132,16 @@ final class ReadSetup: NSObject, NSWindowDelegate {
             root.addArrangedSubview(dl)
         }
 
-        // 主要语言：设了非自动 → 该语言在文中占比够就整篇用它读，避免被穿插的外语带偏
+        // 主要语言：设了非自动 → 该语言在文中占比够就整篇用它读，避免被穿插的外语带偏。
+        // 列表 = 自动 + 已装嗓音覆盖的所有语言（学了新语言、装了对应嗓音就会自动出现）。
         langPopup = NSPopUpButton(frame: .zero, pullsDown: false)
         langPopup.target = self; langPopup.action = #selector(langChanged)
-        langPopup.addItems(withTitles: [
-            L.t(zh: "自动（按内容判断）", en: "Automatic (by content)"),
-            "中文", "English", "日本語", "한국어", "Español", "Français",
-        ])
+        let ordered = Speaker.installedLanguagePrefixes()
+        langCodes = ["auto"] + ordered
+        langPopup.addItem(withTitle: L.t(zh: "自动（按内容判断）", en: "Automatic (by content)"))
+        for code in ordered {
+            langPopup.addItem(withTitle: Locale.current.localizedString(forLanguageCode: code) ?? code)
+        }
         root.addArrangedSubview(labeledRow(L.t(zh: "主要语言", en: "Primary"), langPopup))
 
         // 语速
