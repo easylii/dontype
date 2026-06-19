@@ -102,10 +102,12 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
         return Double(n) / Double(c.total)
     }
 
-    /// 没有主语言偏好时：按全篇字数多数判主语言。CJK 多 → 细分中/日/韩；拉丁多 → NL 识别。
+    /// 没有主语言偏好时判主语言。按「内容量」比：CJK 每字≈一个词，拉丁按词（连续字母段）计，
+    /// 比 CJK 字数 vs 拉丁词数 —— 这样「中文夹几个英文术语」不会因英文词字母多被误判成英文。
     private static func dominantPrefix(_ c: Counts, text: String) -> String {
-        if c.cjk == 0 && c.latin == 0 { return "en" }
-        if c.cjk >= c.latin {
+        let latinWords = latinWordCount(text)
+        if c.cjk == 0 && latinWords == 0 { return "en" }
+        if c.cjk >= latinWords {
             if c.hangul > c.han && c.hangul > c.kana { return "ko" }
             if c.kana > 0 { return "ja" }
             return "zh"
@@ -117,6 +119,23 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
             return String(lang.prefix(2))
         }
         return "en"
+    }
+
+    /// 拉丁词数：连续字母段算一个词；撇号/连字符不断词（Let's、e-mail 各算一个）。
+    private static func latinWordCount(_ text: String) -> Int {
+        var words = 0, inWord = false
+        for u in text.unicodeScalars {
+            let v = u.value
+            let isLatin = (0x41...0x5A).contains(v) || (0x61...0x7A).contains(v) || (0xC0...0x24F).contains(v)
+            if isLatin {
+                if !inWord { words += 1; inWord = true }
+            } else if v == 0x27 || v == 0x2019 || v == 0x2D {
+                // 撇号/连字符：保持在词内，不断词
+            } else {
+                inWord = false
+            }
+        }
+        return words
     }
 
     private static func voice(for prefix: String) -> AVSpeechSynthesisVoice? {
