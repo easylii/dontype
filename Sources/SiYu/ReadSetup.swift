@@ -15,10 +15,12 @@ final class ReadSetup: NSObject, NSWindowDelegate {
 
     private var window: NSWindow?
     private var voicePopup: NSPopUpButton!
+    private var langPopup: NSPopUpButton!
     private var speedPopup: NSPopUpButton!
     private var keyboard: KeyboardRowView!
     private var keyStatus: NSTextField!
     private var voiceIDs: [String] = []        // 与 voicePopup 各项一一对应（"" = 自动）
+    private let langCodes = ["auto", "zh", "en", "ja", "ko", "es", "fr"]
     private let speeds: [Double] = [0.4, 0.5, 0.6, 0.7]
 
     func show() {
@@ -33,6 +35,7 @@ final class ReadSetup: NSObject, NSWindowDelegate {
     private func loadFromConfig() {
         let c = Config.load()
         if let i = voiceIDs.firstIndex(of: c.readVoice) { voicePopup.selectItem(at: i) } else { voicePopup.selectItem(at: 0) }
+        if let i = langCodes.firstIndex(of: c.readLang) { langPopup.selectItem(at: i) } else { langPopup.selectItem(at: 0) }
         if let i = speeds.firstIndex(where: { abs($0 - c.readRate) < 0.001 }) { speedPopup.selectItem(at: i) }
         keyboard.selectedID = c.readKey
     }
@@ -40,6 +43,8 @@ final class ReadSetup: NSObject, NSWindowDelegate {
     // MARK: 动作（改了即时保存）
 
     @objc private func voiceChanged() { persist(["readVoice": voiceIDs[voicePopup.indexOfSelectedItem]]) }
+
+    @objc private func langChanged() { persist(["readLang": langCodes[langPopup.indexOfSelectedItem]]) }
 
     @objc private func speedChanged() { persist(["readRate": speeds[speedPopup.indexOfSelectedItem]]) }
 
@@ -52,8 +57,9 @@ final class ReadSetup: NSObject, NSWindowDelegate {
 
     @objc private func preview() {
         let c = Config.load()
-        speaker.speak(L.t(zh: "这是朗读试听。你好，世界。", en: "This is a voice preview. Hello, world."),
-                      voiceID: c.readVoice, rate: c.readRate)
+        speaker.speak(L.t(zh: "这是朗读试听，包含 a little English。你好，世界。",
+                          en: "This is a voice preview, 含一点中文。Hello, world."),
+                      voiceID: c.readVoice, lang: c.readLang, rate: c.readRate)
     }
 
     @objc private func openVoiceSettings() {
@@ -125,6 +131,15 @@ final class ReadSetup: NSObject, NSWindowDelegate {
             dl.bezelStyle = .inline; dl.isBordered = false; dl.contentTintColor = .linkColor
             root.addArrangedSubview(dl)
         }
+
+        // 主要语言：设了非自动 → 该语言在文中占比够就整篇用它读，避免被穿插的外语带偏
+        langPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+        langPopup.target = self; langPopup.action = #selector(langChanged)
+        langPopup.addItems(withTitles: [
+            L.t(zh: "自动（按内容判断）", en: "Automatic (by content)"),
+            "中文", "English", "日本語", "한국어", "Español", "Français",
+        ])
+        root.addArrangedSubview(labeledRow(L.t(zh: "主要语言", en: "Primary"), langPopup))
 
         // 语速
         speedPopup = NSPopUpButton(frame: .zero, pullsDown: false)

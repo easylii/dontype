@@ -21,11 +21,11 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
         synth.delegate = self
     }
 
-    func speak(_ text: String, voiceID: String, rate: Double) {
+    func speak(_ text: String, voiceID: String, lang: String, rate: Double) {
         synth.stopSpeaking(at: .immediate)
         let u = AVSpeechUtterance(string: text)
         u.rate = Float(max(0, min(1, rate)))
-        u.voice = Speaker.dominantVoice(text: text, preferredID: voiceID)
+        u.voice = Speaker.pickVoice(text: text, preferredID: voiceID, preferredLang: lang)
         finished = false
         pending = 1
         synth.speak(u)
@@ -60,40 +60,56 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
         fireFinish()
     }
 
-    // MARK: 嗓音选择（整篇评估主语言）
+    // MARK: 嗓音选择（整篇评估 + 主语言偏好）
 
-    /// 用户指定了嗓音就用它；否则按全篇主语言挑一个最高质量的嗓音。
-    static func dominantVoice(text: String, preferredID: String) -> AVSpeechSynthesisVoice? {
+    private struct Counts { var han = 0, kana = 0, hangul = 0, latin = 0
+        var cjk: Int { han + kana + hangul }
+        var total: Int { cjk + latin } }
+
+    /// 选嗓音优先级：① 用户指定的具体嗓音 → 永远用它；② 设了「主语言」且它在文中占比够 → 整篇用它；
+    /// ③ 否则按全篇字数多数自动判。母语场景：设主语言=中文后，哪怕英文字更多，只要中文占到一定比例就整篇中文读。
+    static func pickVoice(text: String, preferredID: String, preferredLang: String) -> AVSpeechSynthesisVoice? {
         if !preferredID.isEmpty, let v = AVSpeechSynthesisVoice(identifier: preferredID) { return v }
-        let prefix = dominantLangPrefix(text)
-        let candidates = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix(prefix) }
-        return bestQuality(candidates) ?? AVSpeechSynthesisVoice(language: voiceLocale(for: prefix))
+        let c = counts(text)
+        if preferredLang != "auto", langShare(preferredLang, c) >= 0.10 {
+            return voice(for: preferredLang)
+        }
+        return voice(for: dominantPrefix(c, text: text))
     }
 
-    /// 评估整篇：按字数统计谁为主。CJK 多 → 细分中/日/韩；拉丁多 → NL 识别具体语言。
-    static func dominantLangPrefix(_ text: String) -> String {
-        var cjk = 0, latin = 0, han = 0, kana = 0, hangul = 0
+    private static func counts(_ text: String) -> Counts {
+        var c = Counts()
         for u in text.unicodeScalars {
             let v = u.value
-            if (0xAC00...0xD7A3).contains(v) || (0x1100...0x11FF).contains(v) || (0x3130...0x318F).contains(v) {
-                cjk += 1; hangul += 1
-            } else if (0x3040...0x30FF).contains(v) {
-                cjk += 1; kana += 1
-            } else if (0x4E00...0x9FFF).contains(v) || (0x3400...0x4DBF).contains(v) || (0xF900...0xFAFF).contains(v) {
-                cjk += 1; han += 1
-            } else if (0x41...0x5A).contains(v) || (0x61...0x7A).contains(v) || (0xC0...0x24F).contains(v) {
-                latin += 1
-            }
+            if (0xAC00...0xD7A3).contains(v) || (0x1100...0x11FF).contains(v) || (0x3130...0x318F).contains(v) { c.hangul += 1 }
+            else if (0x3040...0x30FF).contains(v) { c.kana += 1 }
+            else if (0x4E00...0x9FFF).contains(v) || (0x3400...0x4DBF).contains(v) || (0xF900...0xFAFF).contains(v) { c.han += 1 }
+            else if (0x41...0x5A).contains(v) || (0x61...0x7A).contains(v) || (0xC0...0x24F).contains(v) { c.latin += 1 }
         }
-        if cjk == 0 && latin == 0 { return "en" }
+        return c
+    }
 
-        if cjk >= latin {
-            // CJK 为主，细分语种
-            if hangul > han && hangul > kana { return "ko" }   // 谚文占多 → 韩
-            if kana > 0 { return "ja" }                         // 出现假名 → 日（汉字不影响）
-            return "zh"                                         // 否则按中文
+    /// 某语言在全文「实义字符」里的占比（0…1）。
+    private static func langShare(_ prefix: String, _ c: Counts) -> Double {
+        guard c.total > 0 else { return 0 }
+        let n: Int
+        switch prefix {
+        case "zh": n = c.han
+        case "ja": n = c.kana + c.han
+        case "ko": n = c.hangul
+        default:   n = c.latin            // en / es / fr …共用拉丁
         }
-        // 拉丁为主 → 用 NL 识别 en/es/fr…（排除被误判成 CJK 的情况）
+        return Double(n) / Double(c.total)
+    }
+
+    /// 没有主语言偏好时：按全篇字数多数判主语言。CJK 多 → 细分中/日/韩；拉丁多 → NL 识别。
+    private static func dominantPrefix(_ c: Counts, text: String) -> String {
+        if c.cjk == 0 && c.latin == 0 { return "en" }
+        if c.cjk >= c.latin {
+            if c.hangul > c.han && c.hangul > c.kana { return "ko" }
+            if c.kana > 0 { return "ja" }
+            return "zh"
+        }
         let r = NLLanguageRecognizer()
         r.processString(text)
         if let lang = r.dominantLanguage?.rawValue,
@@ -101,6 +117,11 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
             return String(lang.prefix(2))
         }
         return "en"
+    }
+
+    private static func voice(for prefix: String) -> AVSpeechSynthesisVoice? {
+        let candidates = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix(prefix) }
+        return bestQuality(candidates) ?? AVSpeechSynthesisVoice(language: voiceLocale(for: prefix))
     }
 
     /// 菜单用：可选的高质量嗓音（Premium/Enhanced），按质量、语言排序。

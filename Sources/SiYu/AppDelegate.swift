@@ -198,7 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                    under: self.statusItemScreenRect())
                     return
                 }
-                self.speaker.speak(text, voiceID: self.config.readVoice, rate: self.config.readRate)
+                self.speaker.speak(text, voiceID: self.config.readVoice, lang: self.config.readLang, rate: self.config.readRate)
                 self.readHotkey.recordingActive = true
                 self.hud.showSpeaking(paused: false, under: self.statusItemScreenRect())
                 FileLog.write("朗读开始（\(text.count) 字，嗓音=\(self.config.readVoice.isEmpty ? "自动" : self.config.readVoice)）")
