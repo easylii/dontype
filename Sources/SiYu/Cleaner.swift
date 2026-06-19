@@ -47,7 +47,30 @@ enum Cleaner {
                 if String(chars[i..<i+len]) == String(chars[i+len..<i+len*2]) { return true }
             }
         }
+
+        // 内容够长（多半是连续口述，需要顺成完整句子 + 标点）→ 也整理。
+        // 短句（如「好的」「明天见」）不够阈值，跳过保持快。
+        if contentUnits(text) >= 10 { return true }
         return false
+    }
+
+    /// 内容量：CJK 每字算一个，拉丁按词（连续字母段）算一个；用来判断是否值得整理。
+    private static func contentUnits(_ text: String) -> Int {
+        var cjk = 0, words = 0, inWord = false
+        for u in text.unicodeScalars {
+            let v = u.value
+            if (0x4E00...0x9FFF).contains(v) || (0x3040...0x30FF).contains(v) ||
+               (0xAC00...0xD7A3).contains(v) || (0x3400...0x4DBF).contains(v) {
+                cjk += 1; inWord = false
+            } else if (0x41...0x5A).contains(v) || (0x61...0x7A).contains(v) || (0xC0...0x24F).contains(v) {
+                if !inWord { words += 1; inWord = true }
+            } else if v == 0x27 || v == 0x2019 || v == 0x2D {
+                // 撇号/连字符不断词
+            } else {
+                inWord = false
+            }
+        }
+        return cjk + words
     }
 
     static func clean(_ text: String, config: Config, completion: @escaping (String) -> Void) {
