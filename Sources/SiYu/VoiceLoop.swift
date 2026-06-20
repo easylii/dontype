@@ -15,15 +15,12 @@ final class VoiceLoop: NSObject {
     private(set) var active = false
     private(set) var state: State = .idle { didSet { onState?(state) } }
 
-    // VAD（时间制）
+    // 手动收尾：说完按遥控器 OK 才结束本轮（不再自动判停，避开底噪/停顿误判）。
     private var heardSpeech = false
-    private var lastLoudAt: TimeInterval = 0
     private var listenStartAt: TimeInterval = 0
     private var vadTimer: Timer?
-    // 阈值按真实麦数据定：底噪≈0.03~0.075、说话≈0.25~1.0，0.13 卡在中间空档。
-    private let onsetLevel: Float = 0.13       // 高于此算「在说话」（要明显高于底噪）
-    private let pauseSec: TimeInterval = 1.0   // 说完后静音 1 秒判定结束
-    private let maxTurnSec: TimeInterval = 30  // 单轮硬上限
+    private let onsetLevel: Float = 0.13       // 高于此算「在说话」（点亮状态球 + 防空轮）
+    private let maxTurnSec: TimeInterval = 45  // 单轮硬上限（忘按 OK 的兜底）
 
     init(workdir: String) {
         assistant = Assistant(workdir: workdir)
@@ -38,10 +35,7 @@ final class VoiceLoop: NSObject {
         dictation.onLevel = { [weak self] lv in
             guard let self else { return }
             self.onLevel?(lv)
-            if self.state == .listening, lv > self.onsetLevel {
-                self.heardSpeech = true
-                self.lastLoudAt = ProcessInfo.processInfo.systemUptime
-            }
+            if self.state == .listening, lv > self.onsetLevel { self.heardSpeech = true }
         }
     }
 
@@ -65,8 +59,7 @@ final class VoiceLoop: NSObject {
         guard active else { return }
         if speaker.isSpeaking { speaker.stop() }
         heardSpeech = false
-        let now = ProcessInfo.processInfo.systemUptime
-        lastLoudAt = now; listenStartAt = now
+        listenStartAt = ProcessInfo.processInfo.systemUptime
         dictation.requestPermission { [weak self] ok in
             guard let self, self.active else { return }
             guard ok else { FileLog.write("🤖 缺麦克风权限，停止语音环"); self.stop(); return }
@@ -78,12 +71,19 @@ final class VoiceLoop: NSObject {
         }
     }
 
-    private func tickVAD() {
+    private func tickVAD() {   // 只做硬上限兜底；正常靠按 OK 收尾
         guard active, state == .listening else { return }
-        let now = ProcessInfo.processInfo.systemUptime
-        let endBySilence = heardSpeech && (now - lastLoudAt > pauseSec)
-        let endByMax     = heardSpeech && (now - listenStartAt > maxTurnSec)
-        if endBySilence || endByMax { endTurn() }
+        if heardSpeech, ProcessInfo.processInfo.systemUptime - listenStartAt > maxTurnSec { endTurn() }
+    }
+
+    /// 遥控器 OK：手动收尾本轮 —— 听 → 转写并发送；说 → 停朗读、回到听（打断/跳过回复）。
+    func commitTurn() {
+        guard active else { return }
+        switch state {
+        case .listening: endTurn()
+        case .speaking:  speaker.stop(); startListening()
+        default: break
+        }
     }
 
     // MARK: 想

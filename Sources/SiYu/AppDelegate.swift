@@ -211,7 +211,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "right":     postTab(shift: false)   // → = Tab 下一个控件
         case "tabNext":   postTab(shift: false)
         case "tabPrev":   postTab(shift: true)
-        case "click":     handleOK()              // 中间 OK：单击=激活/点击；鼠标模式下双击=选中这段（备朗读）
+        case "click":
+            if voiceLoop.active { voiceLoop.commitTurn() }   // 语音助手中：OK = 发送本轮 / 打断回复
+            else { handleOK() }                              // 否则：单击=激活/点击；鼠标双击=选中这段
         case "readToggle":
             if speaker.isSpeaking { togglePauseReading() } else { startReading() }
         case "assistant": openAssistant()     // 侧键：开/关语音助手
