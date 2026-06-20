@@ -7,13 +7,13 @@ cd "$(dirname "$0")"
 echo "▸ 编译 (release)…"
 swift build -c release
 
-APP="SiYu.app"
+APP="Dontype.app"
 BIN=".build/release/SiYu"
 
 echo "▸ 组装 $APP…"
-rm -rf "$APP"
+rm -rf "$APP" SiYu.app
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/SiYu"
+cp "$BIN" "$APP/Contents/MacOS/Dontype"   # bundle 可执行名 = Dontype（TCC/访达里显示 Dontype）
 cp Info.plist "$APP/Contents/Info.plist"
 
 # 本地化的显示名/权限文案：中文系统显示「丝语」，英文系统显示「Dontype」

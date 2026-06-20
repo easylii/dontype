@@ -2,6 +2,7 @@ import AppKit
 import AVFoundation
 import Speech
 import ApplicationServices
+import GameController
 
 /// 顶部对齐的文档视图：放进 NSScrollView 后内容从上往下排、向下滚动。
 final class FlippedView: NSView {
@@ -48,6 +49,8 @@ final class Onboarding: NSObject {
     private var backendDetail: NSTextField?, backendButton: NSButton?
     private var hotkeyDetail: NSTextField?
     private var readDetail: NSTextField?,   readButton: NSButton?
+    private var remoteDetail: NSTextField?, remoteSwitch: NSButton?
+    private var remoteConnChecking = false
     private var consentStatus: NSTextField?
 
     var onModelReady: (() -> Void)?
@@ -55,6 +58,8 @@ final class Onboarding: NSObject {
     var onConfigureRead: (() -> Void)?
     var onChangeUILang: ((String) -> Void)?
     var onChangeRecogLang: ((String) -> Void)?
+    var onChangeRemoteEnabled: ((Bool) -> Void)?
+    var onConfigureRemote: (() -> Void)?
 
     private let uiLangIDs = ["auto", "zh", "en"]
 
@@ -96,6 +101,7 @@ final class Onboarding: NSObject {
         axDetail = nil; axButton = nil; modelDetail = nil; modelButton = nil; modelBar = nil
         backendDetail = nil; backendButton = nil; hotkeyDetail = nil
         readDetail = nil; readButton = nil; consentStatus = nil
+        remoteDetail = nil; remoteSwitch = nil
     }
 
     private func startRefresh() {
@@ -260,7 +266,9 @@ final class Onboarding: NSObject {
         hotkeyDetail = hk.detail
         root.addArrangedSubview(hk.view)
 
-        let rd = row(title: L.t(zh: "⑧ 朗读选中文字", en: "⑧ Read selection aloud"),
+        root.addArrangedSubview(remoteRow())
+
+        let rd = row(title: L.t(zh: "⑨ 朗读选中文字", en: "⑨ Read selection aloud"),
                      button: L.t(zh: "设置", en: "Configure"), action: #selector(readButtonTapped))
         readDetail = rd.detail; readButton = rd.button
         root.addArrangedSubview(rd.view)
@@ -309,7 +317,7 @@ final class Onboarding: NSObject {
     }
 
     private func uiLangRow() -> NSView {
-        let titleLabel = NSTextField(labelWithString: L.t(zh: "⑨ 界面语言", en: "⑨ Interface language"))
+        let titleLabel = NSTextField(labelWithString: L.t(zh: "⑩ 界面语言", en: "⑩ Interface language"))
         titleLabel.font = .systemFont(ofSize: 13, weight: .medium)
         titleLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let seg = NSSegmentedControl(labels: [L.t(zh: "自动", en: "Auto"), "中文", "EN"],
@@ -663,6 +671,71 @@ final class Onboarding: NSObject {
         onChangeRecogLang?(Whisper.languages[max(0, sender.indexOfSelectedItem)].code)
     }
 
+    /// 遥控器 / 手柄：键位是固定预设的，这里只「开 / 关」+ 连接状态 +「说明」跳到演示。
+    private func remoteRow() -> NSView {
+        let titleLabel = NSTextField(labelWithString: L.t(zh: "⑧ 遥控器 / 手柄", en: "⑧ Remote / controller"))
+        titleLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        titleLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        let sw = NSButton(checkboxWithTitle: L.t(zh: "启用", en: "On"),
+                          target: self, action: #selector(remoteEnabledChanged))
+        sw.state = config.remoteEnabled ? .on : .off
+        remoteSwitch = sw
+
+        let helpBtn = NSButton(title: L.t(zh: "说明", en: "Guide"),
+                               target: self, action: #selector(configureRemote))
+        helpBtn.bezelStyle = .rounded
+
+        let top = NSStackView(views: [titleLabel, sw, helpBtn])
+        top.orientation = .horizontal; top.alignment = .centerY; top.spacing = 12
+
+        let detail = NSTextField(labelWithString: "…")
+        detail.font = .systemFont(ofSize: 11); detail.textColor = .secondaryLabelColor
+        detail.lineBreakMode = .byWordWrapping; detail.preferredMaxLayoutWidth = 424
+        remoteDetail = detail
+
+        let stack = NSStackView(views: [top, detail])
+        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 4
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.widthAnchor.constraint(equalToConstant: 424).isActive = true
+        return stack
+    }
+
+    @objc private func remoteEnabledChanged() {
+        config.remoteEnabled = (remoteSwitch?.state == .on)
+        onChangeRemoteEnabled?(config.remoteEnabled)
+        updateRemoteStatus()
+    }
+
+    @objc private func configureRemote() { onConfigureRemote?() }
+
+    /// 状态行：关 →「已关闭」；开 → 后台查蓝牙，显示已连接 / 未连接。
+    private func updateRemoteStatus() {
+        guard let remoteDetail else { return }
+        if !config.remoteEnabled {
+            remoteDetail.stringValue = "• " + L.t(zh: "已关闭", en: "Off")
+            remoteDetail.textColor = .secondaryLabelColor
+            return
+        }
+        guard !remoteConnChecking else { return }
+        remoteConnChecking = true
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let on = RemoteHID.isConnectedBT()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.remoteConnChecking = false
+                guard let d = self.remoteDetail, self.config.remoteEnabled else { return }
+                if on {
+                    d.stringValue = "✓ " + L.t(zh: "遥控器已连接", en: "Remote connected")
+                    d.textColor = .systemGreen
+                } else {
+                    d.stringValue = "○ " + L.t(zh: "未连接（拿起遥控器按任意键唤醒）", en: "Not connected (press any key to wake)")
+                    d.textColor = .secondaryLabelColor
+                }
+            }
+        }
+    }
+
     @objc private func uiLangChanged(_ sender: NSSegmentedControl) {
         let id = uiLangIDs[max(0, sender.selectedSegment)]
         onChangeUILang?(id)
@@ -739,6 +812,7 @@ final class Onboarding: NSObject {
                                                   en: "double-tap \(tl) to start · tap to stop · Esc cancel")
             hotkeyDetail.textColor = .secondaryLabelColor
         }
+        if remoteDetail != nil { updateRemoteStatus() }
         if let readDetail, let readButton {
             let rl = Trigger.from(config.readKey).label
             if Speaker.premiumVoices().isEmpty {

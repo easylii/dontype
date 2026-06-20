@@ -4,16 +4,27 @@ import ApplicationServices
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let hotkey = HotkeyMonitor()
     private let readHotkey = HotkeyMonitor()   // 朗读选中文字的独立触发键
+    private let gamepad = GameControllerInput() // 蓝牙手柄：A 键听写、摇杆移光标、十字键方向键
+    private let remote = RemoteHID()            // Apple TV 遥控器特殊键（id=251）：选择/方向/菜单…
+    private let touchpad = MultitouchRemote()   // 遥控器触摸面 → 鼠标（私有 MultitouchSupport，可选）
     private let dictation = Dictation()
     private let speaker = Speaker()
     private let hud = HUD()
     private var config = Config.load()
     private var statusItem: NSStatusItem!
     private var busy = false
+    private var lastRemoteArrowAt: TimeInterval = 0   // 最近一次遥控器方向键导航的时刻（OK 用它和触摸板比，判断有没有高亮）
 
     /// 朗读设置（语音/语速/触发键/试听），从设置向导进入。
     private lazy var readSetup = ReadSetup(readHotkey: readHotkey, speaker: speaker) { [weak self] kv in
         self?.persist(kv)
+    }
+
+    /// 遥控器设置（画出遥控器 + 实时点亮 + 每键分配动作 + 触摸板鼠标），从设置进入。
+    private lazy var remoteSetup = RemoteSetup(remote: remote, touchpad: touchpad) { [weak self] kv in
+        guard let self else { return }
+        self.persist(kv)
+        self.config = Config.load()   // 同步内存 config（含 remoteMap），动作查表才不过时
     }
 
     /// 热键设置（Typeless 式：选键 → 双击测试 → 确认才生效）。确认后持久化并刷新 UI。
@@ -48,6 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Onboarding.shared.onModelReady = { Whisper.startServer() }
         Onboarding.shared.onConfigureHotkey = { [weak self] in self?.hotkeySetup.show() }
         Onboarding.shared.onConfigureRead = { [weak self] in self?.readSetup.show() }
+        Onboarding.shared.onConfigureRemote = { [weak self] in self?.remoteSetup.show() }
         Onboarding.shared.onChangeUILang = { [weak self] id in
             guard let self else { return }
             self.config.uiLang = id
@@ -61,6 +73,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.persist(["recognitionLang": code])
             Whisper.configure(modelID: self.config.whisperModel, language: code)
             Whisper.restartServer()   // 识别语言变了，重启识别服务生效
+        }
+        Onboarding.shared.onChangeRemoteEnabled = { [weak self] on in
+            guard let self else { return }
+            self.config.remoteEnabled = on
+            self.persist(["remoteEnabled": on])
+            if on { self.touchpad.start(); self.enableFullKeyboardAccess() } else { self.touchpad.stop() }   // 触摸板鼠标随总开关
+            self.rebuildMenu()
         }
 
         let guiding = Onboarding.shouldAutoShow()
@@ -81,12 +100,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let self, self.dictation.isRecording else { return }
             self.stopAndProcess(paste: true)
         }
-        // Esc：完成但不粘贴 —— 文字留在药丸上可点 copy，不会白录
+        // Esc：立刻取消 —— 关麦、丢弃、不转写不分析，回到待命等下一条命令
         hotkey.onEscape = { [weak self] in
             guard let self, self.dictation.isRecording else { return }
-            self.stopAndProcess(paste: false)
+            self.cancelDictation()
         }
+        hotkey.diagnostic = config.diagnostic   // 诊断模式：记录每个键到日志（测遥控器用）
         hotkey.start()
+
+        // 蓝牙手柄：A 键切换听写、左摇杆移光标、十字键方向键、B 键点击（手柄连上即生效）
+        gamepad.onToggleDictation = { [weak self] in self?.toggleDictation() }
+        gamepad.start()
+
+        // Apple TV 遥控器特殊键（id=251）：按设置里的映射执行动作（默认 选择=听写、方向键=导航）。
+        // 设置页打开时 remote.suppressed=true，只点亮不执行。需「输入监视」权限，有了才真正监听。
+        remote.onButtonEdge = { [weak self] code, down in
+            guard let self else { return }
+            if down, self.config.diagnostic { FileLog.write("🎛 遥控键 \(code)（\(RemoteHID.id(forCode: code) ?? "?"))") }
+            guard down, !self.remote.suppressed else { return }
+            self.performRemoteAction(code)
+        }
+        remote.logAll = config.diagnostic   // 诊断时记录遥控器全部报文（查触摸面有没有发坐标）
+        remote.start()
+
+        // 遥控器触摸面当鼠标（私有 MultitouchSupport）——随总开关
+        if config.remoteEnabled { touchpad.start(); enableFullKeyboardAccess() }
 
         // 朗读选中文字：独立触发键（默认双击 右⌘）—— 双击读、单击暂停/继续、Esc 停
         readHotkey.setTrigger(Trigger.from(config.readKey))
@@ -121,6 +159,160 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: 录音流程
 
+    /// 一键切换听写：没在录就开始、正在录就结束并粘贴。遥控器/手柄共用。
+    private func toggleDictation() {
+        if dictation.isRecording { stopAndProcess(paste: true) } else { startRecording() }
+    }
+
+    /// 遥控器某键按下 → 按当前映射执行动作。总开关关了就不执行。
+    private func performRemoteAction(_ code: String) {
+        guard config.remoteEnabled else { return }
+        let action = config.remoteMap[code] ?? RemoteHID.defaultAction(code)
+        // 用了方向键导航 → 记下时刻；OK 时若比触摸板更近，就认「有高亮」、激活它而非点鼠标
+        if ["up", "down", "left", "right", "tabNext", "tabPrev"].contains(action) {
+            lastRemoteArrowAt = ProcessInfo.processInfo.systemUptime
+            if config.diagnostic { logFocusDiag(action) }   // 诊断：按方向键那一刻焦点/光标状态
+        }
+        switch action {
+        case "dictation": toggleDictation()
+        // 取消(返回 ‹)：听写中 → 立刻中止、丢弃、不转写不分析；否则 → 给当前 App 发 Esc（通用返回/取消）
+        case "cancel":    if dictation.isRecording { cancelDictation() } else { postKey(53) }
+        // 通用规范（不依赖读焦点，网页/原生都一致）：
+        // 竖轴 ↑/↓ = 真方向键（列表/菜单/侧栏上下走）；横轴 ←/→ = Shift+Tab/Tab（在控件/按钮间跳）。
+        case "up":        postArrow(126)   // ↑
+        case "down":      postArrow(125)   // ↓
+        case "left":      postTab(shift: true)    // ← = Shift+Tab 上一个控件
+        case "right":     postTab(shift: false)   // → = Tab 下一个控件
+        case "tabNext":   postTab(shift: false)
+        case "tabPrev":   postTab(shift: true)
+        case "click":     postClickOrSend()       // 中间 OK：输入框=回车发送，否则=空格激活聚焦的按钮
+        case "readToggle":
+            if speaker.isSpeaking { togglePauseReading() } else { startReading() }
+        default: break    // none
+        }
+    }
+
+    /// 中间键(OK)= 确认/激活。规则：优先「高亮项」，没有高亮才用「鼠标位置」。
+    /// 怎么判断有没有高亮：方向键和触摸板谁最近被用就听谁的（都没动过 = 没高亮 → 鼠标）：
+    ///  • 方向键更近（在控高亮）→ 激活高亮项：原生 App 读得到焦点就精准处理（输入框=回车、可按下控件=直接按下）；
+    ///    网页/Electron 读不到焦点（恒 nil）→ 发回车，激活 Tab/方向键聚焦的那一项（等同点它）。
+    ///  • 触摸板更近（在指鼠标）/ 从没导航 → 在光标处左键单击。
+    private func postClickOrSend() {
+        let hasHighlight = lastRemoteArrowAt > MultitouchRemote.lastMoveUptime   // 方向键比触摸板更近 = 有高亮
+        guard hasHighlight else { postClick(); return }                          // 没高亮 → 点鼠标光标处
+        if let el = focusedElement() {                                           // 原生 App：直接激活聚焦的高亮控件
+            if isTextInput(el) { postKey(36); return }   // 36 = Return（输入框=回车）
+            if axPress(el) { return }                    // 可「按下」控件 → 直接激活
+        }
+        postKey(36)   // 网页/Electron 读不到焦点 → 回车激活高亮项
+    }
+
+    /// Tab / Shift+Tab：在控件/链接间跳焦点。统一走 postKey 的「网页直达进程」分流。
+    private func postTab(shift: Bool) { postKey(48, flags: shift ? .maskShift : []) }
+
+    /// 打开 macOS「键盘导航 / 全键盘访问」（AppleKeyboardUIMode），让 Tab/方向键能跳到按钮 ——
+    /// 否则系统默认下 Tab 只在文本框/列表间跳，落不到按钮。幂等：已开就不动。
+    /// 已经运行的 App 多数下次激活/启动时生效；设置持久化，之后一直有效。
+    private func enableFullKeyboardAccess() {
+        let key = "AppleKeyboardUIMode" as CFString
+        let cur = (CFPreferencesCopyValue(key, kCFPreferencesAnyApplication,
+                                          kCFPreferencesCurrentUser, kCFPreferencesAnyHost) as? Int) ?? 0
+        guard cur & 2 == 0 else { return }   // 值 2 那位 =「所有控件」，已开则跳过
+        CFPreferencesSetValue(key, 3 as CFNumber, kCFPreferencesAnyApplication,
+                              kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
+        CFPreferencesSynchronize(kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
+        DistributedNotificationCenter.default().postNotificationName(
+            NSNotification.Name("AppleKeyboardUIModeChanged"), object: nil, deliverImmediately: true)
+        FileLog.write("⌨︎ 已开启全键盘访问（AppleKeyboardUIMode=3）：Tab/方向键可跳到按钮")
+    }
+
+    /// 在当前光标位置合成一次鼠标左键单击（遥控器当鼠标时用）。
+    private func postClick() {
+        let p = CGEvent(source: nil)?.location ?? .zero
+        CGEvent(mouseEventSource: arrowSource, mouseType: .leftMouseDown, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
+        CGEvent(mouseEventSource: arrowSource, mouseType: .leftMouseUp, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
+    }
+
+    /// 合成一个键送到当前焦点目标 —— 关键修复：按目标分流投递路径。
+    /// 网页/Electron（辅助功能读不到焦点，恒 nil）→ 直接投给前台 App 进程（postToPid），
+    ///   绕开系统层（含全键盘访问）的拦截 —— 合成的 Tab 在 HID 层会被全键盘访问吃掉、网页 DOM 收不到，
+    ///   物理 Tab 却能到，差别就在这；直达进程后网页就能正常收到 Tab/方向键/回车。
+    /// 原生 App（读得到焦点）→ 走 HID 级，配合全键盘访问让 Tab 落到按钮。
+    private func postKey(_ keycode: CGKeyCode, flags: CGEventFlags = []) {
+        guard let down = CGEvent(keyboardEventSource: arrowSource, virtualKey: keycode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: arrowSource, virtualKey: keycode, keyDown: false) else { return }
+        down.flags = flags; up.flags = flags
+        if focusedElement() == nil, let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier {
+            down.postToPid(pid); up.postToPid(pid)                         // 网页/Electron：直达进程
+        } else {
+            down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)   // 原生：HID 层（全键盘访问到按钮）
+        }
+    }
+
+    /// 系统级当前键盘焦点元素。
+    private func focusedElement() -> AXUIElement? {
+        let sys = AXUIElementCreateSystemWide()
+        var focused: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(sys, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
+              let el = focused else { return nil }
+        return (el as! AXUIElement)
+    }
+
+    /// 诊断：打印当前键盘焦点元素 —— 角色/子角色、所属 App、输入光标/选区、字段内容长度。
+    /// 用来看「在 text field 里听写完按右键」那一刻，焦点还在不在输入框、光标在哪。
+    private func logFocusDiag(_ tag: String) {
+        guard let el = focusedElement() else {
+            FileLog.write("🎯 [\(tag)] 焦点=nil —— AX 读不到聚焦元素（多半是网页/Electron，未桥接辅助功能）")
+            return
+        }
+        func str(_ a: String) -> String {
+            var r: CFTypeRef?; AXUIElementCopyAttributeValue(el, a as CFString, &r); return (r as? String) ?? "-"
+        }
+        var pid: pid_t = 0; AXUIElementGetPid(el, &pid)
+        let app = NSRunningApplication(processIdentifier: pid)?.localizedName ?? "?(pid \(pid))"
+        var cursor = "-"
+        var rv: CFTypeRef?
+        if AXUIElementCopyAttributeValue(el, kAXSelectedTextRangeAttribute as CFString, &rv) == .success,
+           let v = rv, CFGetTypeID(v) == AXValueGetTypeID() {
+            var range = CFRange()
+            if AXValueGetValue(v as! AXValue, .cfRange, &range) { cursor = "loc=\(range.location) len=\(range.length)" }
+        }
+        let val = str(kAXValueAttribute as String)
+        let valLen = val == "-" ? -1 : val.count
+        FileLog.write("🎯 [\(tag)] @\(app) role=\(str(kAXRoleAttribute as String))/\(str(kAXSubroleAttribute as String)) "
+                      + "光标[\(cursor)] 字段长=\(valLen) 文本输入框=\(isTextInput(el))")
+    }
+
+    /// 焦点是否是「文本输入框」（决定 OK 发回车还是别的）。
+    private func isTextInput(_ el: AXUIElement) -> Bool {
+        var roleRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(el, kAXRoleAttribute as CFString, &roleRef)
+        let role = (roleRef as? String) ?? ""
+        if role == (kAXTextFieldRole as String) || role == (kAXTextAreaRole as String) { return true }
+        var settable: DarwinBoolean = false
+        if AXUIElementIsAttributeSettable(el, kAXValueAttribute as CFString, &settable) == .success, settable.boolValue {
+            var valueRef: CFTypeRef?
+            if AXUIElementCopyAttributeValue(el, kAXValueAttribute as CFString, &valueRef) == .success,
+               valueRef is String { return true }
+        }
+        return false
+    }
+
+    /// 聚焦控件支持「按下」动作(按钮/链接等) → 直接激活，返回是否成功。
+    private func axPress(_ el: AXUIElement) -> Bool {
+        var names: CFArray?
+        guard AXUIElementCopyActionNames(el, &names) == .success,
+              let arr = names as? [String], arr.contains(kAXPressAction as String) else { return false }
+        return AXUIElementPerformAction(el, kAXPressAction as CFString) == .success
+    }
+
+    private let arrowSource = CGEventSource(stateID: .hidSystemState)
+    /// 合成一次方向键（按下+抬起），发给当前前台 App。
+    private func postArrow(_ keycode: CGKeyCode) {
+        CGEvent(keyboardEventSource: arrowSource, virtualKey: keycode, keyDown: true)?.post(tap: .cghidEventTap)
+        CGEvent(keyboardEventSource: arrowSource, virtualKey: keycode, keyDown: false)?.post(tap: .cghidEventTap)
+    }
+
     private func startRecording() {
         if busy { return }
         if speaker.isSpeaking { speaker.stop() }   // 开始说话前先停掉正在朗读的
@@ -153,6 +345,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// paste=true（单击 Control）整理后粘贴到光标；paste=false（Esc）只展示+copy 按钮
+    /// 取消听写：立刻关麦、丢弃录音，不转写、不做 AI 分析，回到待命（Esc / 遥控器返回 ‹）。
+    private func cancelDictation() {
+        guard dictation.isRecording else { return }
+        dictation.cancel()
+        hotkey.recordingActive = false
+        setIcon(.idle)
+        hud.showCancelled()
+    }
+
     private func stopAndProcess(paste: Bool) {
         guard dictation.isRecording else { return }
         busy = true
@@ -262,6 +463,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         pasteItem.target = self
         pasteItem.state = config.autoPaste ? .on : .off
         menu.addItem(pasteItem)
+
+        // 遥控器用法说明（设置/演示在「设置向导 ▸ ⑧ 遥控器 ▸ 说明」里）
+        menu.addItem(hintItem(L.t(zh: "遥控器：TV 说话 · 再按完成 · ‹/Esc 取消 · ↑↓ 列表上下 · ←→ Tab 切控件/按钮",
+                                  en: "Remote: TV to talk · again to finish · ‹/Esc cancels · ↑↓ move lists · ←→ Tab between controls")))
 
         menu.addItem(buildMicMenu())
 
@@ -409,11 +614,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         rebuildMenu()
     }
 
+    /// 遥控键 id → 媒体键码（NX_KEYTYPE_*）；"off"/未知 = nil（关闭）。
+    static func remoteMediaCode(_ id: String) -> Int64? {
+        switch id {
+        case "playpause": return 16
+        case "mute":      return 7
+        case "next":      return 17
+        case "prev":      return 18
+        default:          return nil
+        }
+    }
+
+    /// 当前遥控器用什么键触发听写：媒体键优先，否则取 id=251 里映射到「听写」的那个键。空 = 没设。
+    private func remoteDictationTriggerLabel() -> String {
+        let media: [String: String] = [
+            "playpause": L.t(zh: "播放/暂停", en: "Play/Pause"), "mute": L.t(zh: "静音", en: "Mute"),
+            "prev": L.t(zh: "上一首", en: "Prev"), "next": L.t(zh: "下一首", en: "Next"),
+        ]
+        if config.remoteKey != "off", let n = media[config.remoteKey] { return n }
+        for b in RemoteHID.buttons where (config.remoteMap[b.code] ?? RemoteHID.defaultAction(b.code)) == "dictation" {
+            return L.t(zh: b.zh, en: b.en)
+        }
+        return ""
+    }
+
     @objc private func recallEntry(_ sender: NSMenuItem) {
         guard let text = sender.representedObject as? String else { return }
         RecallStore.shared.recall(byText: text)   // 复制回剪贴板并置顶；自己 Cmd+V 粘到想要的地方
         FileLog.write("剪贴历史重取 → 已复制（\(text.count) 字）")
     }
+
+    @objc private func openRemoteSetup() { remoteSetup.show() }
 
     @objc private func openOnboarding() {
         Onboarding.shared.show(paginated: false)   // 菜单：开旧版设置面板（单窗口清单），不走分页向导

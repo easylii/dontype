@@ -138,6 +138,20 @@ final class HUD: NSObject, NSWindowDelegate {
         scheduleHide(after: 4)
     }
 
+    /// 取消听写：药丸上闪一个红色 ✕（不出文字、不分析），短暂停留即收起。
+    func showCancelled() {
+        cancelTimer()
+        if panel == nil { build() }
+        copyPanel?.orderOut(nil)
+        micIconView.image = MicIcon.image(for: .builtin)
+        label.textColor = NSColor.systemRed.blended(withFraction: 0.3, of: .white) ?? .systemRed
+        label.stringValue = "✕"
+        setVisible(label: true)
+        label.toolTip = "已取消"
+        panel?.orderFrontRegardless()
+        scheduleHide(after: 1.1)
+    }
+
     /// 朗读中：左侧喇叭/暂停图标 + 声波（朗读时滚动、暂停时静止），常驻到收起（stop/读完）
     func showSpeaking(paused: Bool, under anchor: NSRect?) {
         cancelTimer()            // 内部会停掉旧的朗读声波 timer
@@ -233,7 +247,7 @@ final class HUD: NSObject, NSWindowDelegate {
     private func position(under anchor: NSRect?) {
         guard let p = panel else { return }
         let screen = activeScreen()
-        let f = screen.frame
+        let f = screen.visibleFrame   // 用可见区（菜单栏/刘海下方），避免被刘海或菜单栏遮住
         // 基准 = 当前屏顶部中点（多屏/单屏都贴你正在打字那块屏的最顶）；再叠加用户拖动的偏移
         let baseX = f.midX - p.frame.width / 2
         let baseY = f.maxY - p.frame.height - 6
@@ -250,8 +264,9 @@ final class HUD: NSObject, NSWindowDelegate {
     /// 当前屏顶部中点（用于把绝对坐标换算成「相对顶部」的偏移）
     private func topCenterBase(_ screen: NSScreen) -> NSPoint {
         guard let p = panel else { return .zero }
-        return NSPoint(x: screen.frame.midX - p.frame.width / 2,
-                       y: screen.frame.maxY - p.frame.height - 6)
+        let f = screen.visibleFrame   // 菜单栏/刘海下方
+        return NSPoint(x: f.midX - p.frame.width / 2,
+                       y: f.maxY - p.frame.height - 6)
     }
 
     // 用户拖动药丸：换算成相对当前屏顶部的偏移并记住（防抖后持久化）
@@ -302,7 +317,7 @@ final class HUD: NSObject, NSWindowDelegate {
         let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: w, height: h),
                         styleMask: [.borderless, .nonactivatingPanel],
                         backing: .buffered, defer: false)
-        p.level = .screenSaver
+        p.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))   // 屏蔽层之上：盖过一切窗口/菜单/全屏
         p.isFloatingPanel = true
         p.hidesOnDeactivate = false
         p.isOpaque = false

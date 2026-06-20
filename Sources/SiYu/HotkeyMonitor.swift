@@ -52,13 +52,36 @@ final class HotkeyMonitor {
     var testMode = false
     /// 测试模式下检测到双击触发键 —— 主线程
     var onTestDoubleTap: (() -> Void)?
+    /// 遥控器（媒体键）触发：按一下回调一次（开始/结束由上层按当前状态切换）—— 主线程
+    var onRemoteToggle: (() -> Void)?
+    /// 当前用作遥控触发的媒体键码（NX_KEYTYPE_*）；nil = 关闭。播放/暂停=16、静音=7、下一首=17、上一首=18。
+    /// Apple TV 遥控器虽以「泛型蓝牙设备」连入、方向/选择键不通，但媒体键会作为标准 HID 消费键传到 Mac，可被截获。
+    var remoteMediaKey: Int64?
+    /// 诊断模式：把每个键（普通/修饰/媒体）原样写进日志，不触发不吞 —— 摸清遥控器各键发什么用，测完关掉。
+    var diagnostic = false
     private(set) var trigger: Trigger = .from("control")
+
+    /// 媒体键码 → 名字（诊断 / 日志可读）。
+    static func mediaName(_ code: Int) -> String {
+        switch code {
+        case 0:  return "音量+"
+        case 1:  return "音量-"
+        case 7:  return "静音"
+        case 16: return "播放/暂停"
+        case 17: return "下一首"
+        case 18: return "上一首"
+        case 19: return "快进"
+        case 20: return "快退"
+        default: return "未知"
+        }
+    }
 
     private var tap: CFMachPort?
     private var thread: Thread?
     private var keyHeld = false
     private var sawOther = false
     private var lastTapTime: TimeInterval = 0
+    private var lastRemoteToggle: TimeInterval = 0
 
     private let allModifiers: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift, .maskSecondaryFn]
 
@@ -71,7 +94,8 @@ final class HotkeyMonitor {
     func start() {
         guard tap == nil else { return }   // 已在监听，避免重复创建
         let mask = (1 << CGEventType.flagsChanged.rawValue) |
-                   (1 << CGEventType.keyDown.rawValue)
+                   (1 << CGEventType.keyDown.rawValue) |
+                   (1 << 14)   // NSSystemDefined：媒体键（遥控器的播放/静音/音量等走这条）
         let callback: CGEventTapCallBack = { _, type, event, refcon in
             let m = Unmanaged<HotkeyMonitor>.fromOpaque(refcon!).takeUnretainedValue()
             return m.handle(type: type, event: event) ? Unmanaged.passUnretained(event) : nil
@@ -111,6 +135,51 @@ final class HotkeyMonitor {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return true
+        }
+
+        // 诊断模式：原样记录每个键、全部放行（不触发、不吞）。摸清遥控器各键发什么。
+        if diagnostic {
+            switch type.rawValue {
+            case 14:
+                if let ns = NSEvent(cgEvent: event), ns.subtype.rawValue == 8 {
+                    let d = ns.data1
+                    let code = Int((d & 0xFFFF0000) >> 16)
+                    let st = (d & 0x0000FF00) >> 8
+                    let phase = st == 0x0A ? "↓按下" : (st == 0x0B ? "↑抬起" : "state=\(st)")
+                    FileLog.write("🔎 媒体键 code=\(code)（\(HotkeyMonitor.mediaName(code))） \(phase)")
+                }
+            case 10:
+                FileLog.write("🔎 普通键 keyCode=\(event.getIntegerValueField(.keyboardEventKeycode)) ↓")
+            case 12:
+                let f = String(event.flags.rawValue, radix: 16)
+                FileLog.write("🔎 修饰键 keyCode=\(event.getIntegerValueField(.keyboardEventKeycode)) flags=0x\(f)")
+            default:
+                FileLog.write("🔎 其他事件 type=\(type.rawValue)")
+            }
+            return true
+        }
+
+        // 媒体键（type 14 = NSSystemDefined）：匹配到设定的遥控键就切换听写、并吞掉，
+        // 否则原样放行（键盘/耳机的播放、音量照常工作）。
+        if type.rawValue == 14 {
+            guard let key = remoteMediaKey,
+                  let ns = NSEvent(cgEvent: event), ns.subtype.rawValue == 8 else { return true }
+            let data1 = ns.data1
+            let code = Int64((data1 & 0xFFFF0000) >> 16)
+            guard code == key else { return true }
+            let down = ((data1 & 0x0000FF00) >> 8) == 0x0A
+            if down {
+                // 去抖：忽略 0.3s 内的连发（遥控键自动重发 / 手指抖动），避免「秒开秒关」录到空
+                let now = ProcessInfo.processInfo.systemUptime
+                if now - lastRemoteToggle >= 0.3 {
+                    lastRemoteToggle = now
+                    FileLog.write("🎬 遥控媒体键 \(code) → 切换听写")
+                    DispatchQueue.main.async {
+                        if self.testMode { self.onTestDoubleTap?() } else { self.onRemoteToggle?() }
+                    }
+                }
+            }
+            return false   // 按下/抬起都吞掉，避免顺带控制了媒体
         }
 
         if type == .keyDown {

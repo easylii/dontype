@@ -10,6 +10,11 @@ struct Config {
     var autoPaste: Bool
     var locale: String       // Apple 备用后端的识别 locale（如 zh-CN / en-US），仅 whisper 缺失时用
     var triggerKey: String   // 双击触发键：control / fn / rightCommand / rightOption / option
+    var remoteKey: String    // 遥控器（媒体键）触发听写：off / playpause / mute / next / prev，默认 off（不抢键盘媒体键）
+    var remoteMap: [String: String] // 遥控器 id=251 特殊键 → 动作：位码("d0.3")→action("dictation"/"up"…)，空=用内置默认
+    var remoteEnabled: Bool  // 遥控器/手柄总开关：开=按键固定映射生效 + 触摸板移光标；关=遥控器啥也不做，默认 true
+    var remoteTrackpad: Bool // 把遥控器触摸面当触控板移动鼠标（私有 MultitouchSupport，实验），默认 false
+    var diagnostic: Bool     // 诊断模式：把每个键写进日志、不触发不吞（摸清遥控器各键发什么），默认 false
     var micDeviceUID: String // 手动指定麦克风 UID；空串 = 自动智能选择（盖开内置/合盖iPhone/兜底默认）
     var uiLang: String       // 界面语言：auto（跟随系统）/ zh / en
     var whisperModel: String // 识别模型 id（见 Whisper.models），默认 large-v3-turbo
@@ -32,6 +37,11 @@ struct Config {
             autoPaste: true,
             locale: "zh-CN",
             triggerKey: "control",
+            remoteKey: "off",
+            remoteMap: [:],
+            remoteEnabled: true,
+            remoteTrackpad: false,
+            diagnostic: false,
             micDeviceUID: "",
             uiLang: "auto",
             whisperModel: "large-v3-turbo",
@@ -51,6 +61,11 @@ struct Config {
             if let v = json["autoPaste"] as? Bool { c.autoPaste = v }
             if let v = json["locale"] as? String, !v.isEmpty { c.locale = v }
             if let v = json["triggerKey"] as? String, !v.isEmpty { c.triggerKey = v }
+            if let v = json["remoteKey"] as? String, !v.isEmpty { c.remoteKey = v }
+            if let v = json["remoteMap"] as? [String: String] { c.remoteMap = v }
+            if let v = json["remoteEnabled"] as? Bool { c.remoteEnabled = v }
+            if let v = json["remoteTrackpad"] as? Bool { c.remoteTrackpad = v }
+            if let v = json["diagnostic"] as? Bool { c.diagnostic = v }
             if let v = json["micDeviceUID"] as? String { c.micDeviceUID = v }
             if let v = json["uiLang"] as? String, !v.isEmpty { c.uiLang = v }
             if let v = json["whisperModel"] as? String, !v.isEmpty { c.whisperModel = v }
