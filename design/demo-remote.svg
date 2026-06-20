@@ -11,8 +11,8 @@
   <rect x="1" y="1" width="718" height="198" rx="16" fill="#FBFCFD" stroke="#E7EBEF"/>
   <text x="28" y="32" fill="#8794A1" font-size="12" font-weight="600">APPLE TV REMOTE · GEN 2 / 3</text>
 
-  <!-- ===== Siri Remote (silver body, bottom 1/4 bleeds off the card) ===== -->
-  <g transform="translate(15,30) scale(1.75)">
+  <!-- ===== Siri Remote (silver body,放大 + 贴底：底部 1/4 沉到卡片下边外、3/4 露出) ===== -->
+  <g transform="translate(-7,38) scale(2.2)">
     <rect x="37.03" y="3.15" width="24.83" height="94.18" rx="5" fill="url(#bodyG)" stroke="#aab0b8" stroke-width="0.4"/>
     <rect x="48.4" y="6.6" width="2.1" height="0.8" rx="0.4" fill="#3a3d42"/>
     <circle cx="56.64" cy="8.15" r="2.3" fill="#1b1b1d"/>
