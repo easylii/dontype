@@ -14,6 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var busy = false
     private var lastRemoteArrowAt: TimeInterval = 0   // 最近一次遥控器方向键导航的时刻（OK 用它和触摸板比，判断有没有高亮）
+    private var lastOKAt: TimeInterval = 0            // 上次按 OK 的时刻（判 double-OK）
+    private var readArmed = false                     // 刚 double-OK 选了文字 → 下次 TV 改成朗读
+    private var readArmedAt: TimeInterval = 0
 
     /// 朗读设置（语音/语速/触发键/试听），从设置向导进入。
     private lazy var readSetup = ReadSetup(readHotkey: readHotkey, speaker: speaker) { [weak self] kv in
@@ -174,9 +177,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if config.diagnostic { logFocusDiag(action) }   // 诊断：按方向键那一刻焦点/光标状态
         }
         switch action {
-        case "dictation": toggleDictation()
-        // 取消(返回 ‹)：听写中 → 立刻中止、丢弃、不转写不分析；否则 → 给当前 App 发 Esc（通用返回/取消）
-        case "cancel":    if dictation.isRecording { cancelDictation() } else { postKey(53) }
+        // TV 键上下文相关：朗读中 → 停；刚 double-OK 选了文字(12s 内) → 朗读这段；否则 → 听写
+        case "dictation":
+            if speaker.isSpeaking { stopReading() }
+            else if readArmed, ProcessInfo.processInfo.systemUptime - readArmedAt < 12 {
+                readArmed = false; startReading()
+            } else { toggleDictation() }
+        // 取消(返回 ‹)：听写中 → 立刻中止丢弃；朗读中 → 停止朗读；否则 → 给当前 App 发 Esc（通用返回/取消）
+        case "cancel":
+            if dictation.isRecording { cancelDictation() }
+            else if speaker.isSpeaking { stopReading() }
+            else { postKey(53) }
         // 通用规范（不依赖读焦点，网页/原生都一致）：
         // 竖轴 ↑/↓ = 真方向键（列表/菜单/侧栏上下走）；横轴 ←/→ = Shift+Tab/Tab（在控件/按钮间跳）。
         case "up":        postArrow(126)   // ↑
@@ -185,10 +196,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "right":     postTab(shift: false)   // → = Tab 下一个控件
         case "tabNext":   postTab(shift: false)
         case "tabPrev":   postTab(shift: true)
-        case "click":     postClickOrSend()       // 中间 OK：输入框=回车发送，否则=空格激活聚焦的按钮
+        case "click":     handleOK()              // 中间 OK：单击=激活/点击；鼠标模式下双击=选中这段（备朗读）
         case "readToggle":
             if speaker.isSpeaking { togglePauseReading() } else { startReading() }
         default: break    // none
+        }
+    }
+
+    /// 中间 OK：鼠标模式下「连按两下」= 在光标处三连击选中所在段落/行，并备好朗读（下次 TV 念这段）；
+    /// 否则就是普通单次确认（postClickOrSend）。
+    private func handleOK() {
+        let now = ProcessInfo.processInfo.systemUptime
+        let mouseMode = lastRemoteArrowAt <= MultitouchRemote.lastMoveUptime   // 指点状态才允许双击选字
+        if mouseMode, now - lastOKAt < 0.45 {
+            postMultiClick(3)                       // 三连击 → 选中所在这段文字
+            readArmed = true; readArmedAt = now     // 下次按 TV 朗读这段
+            lastOKAt = 0                            // 防止三连按再次触发
+        } else {
+            lastOKAt = now
+            postClickOrSend()
         }
     }
 
@@ -227,10 +253,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// 在当前光标位置合成一次鼠标左键单击（遥控器当鼠标时用）。
-    private func postClick() {
+    private func postClick() { postMultiClick(1) }
+
+    /// 在光标处合成 n 连击（clickState 1…n）：2 连击=选词、3 连击=选所在段落/行。
+    private func postMultiClick(_ count: Int) {
         let p = CGEvent(source: nil)?.location ?? .zero
-        CGEvent(mouseEventSource: arrowSource, mouseType: .leftMouseDown, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
-        CGEvent(mouseEventSource: arrowSource, mouseType: .leftMouseUp, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
+        for i in 1...max(1, count) {
+            let down = CGEvent(mouseEventSource: arrowSource, mouseType: .leftMouseDown, mouseCursorPosition: p, mouseButton: .left)
+            down?.setIntegerValueField(.mouseEventClickState, value: Int64(i)); down?.post(tap: .cghidEventTap)
+            let up = CGEvent(mouseEventSource: arrowSource, mouseType: .leftMouseUp, mouseCursorPosition: p, mouseButton: .left)
+            up?.setIntegerValueField(.mouseEventClickState, value: Int64(i)); up?.post(tap: .cghidEventTap)
+        }
     }
 
     /// 合成一个键送到当前焦点目标 —— 关键修复：按目标分流投递路径。
@@ -464,6 +497,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // 遥控器用法说明（设置/演示在「设置向导 ▸ ⑧ 遥控器 ▸ 说明」里）
         menu.addItem(hintItem(L.t(zh: "遥控器：TV 说话 · 再按完成 · ‹/Esc 取消 · ↑↓ 列表上下 · ←→ Tab 切控件/按钮",
                                   en: "Remote: TV to talk · again to finish · ‹/Esc cancels · ↑↓ move lists · ←→ Tab between controls")))
+        menu.addItem(hintItem(L.t(zh: "　　　纯文本上 双击OK 选中这段 → 按 TV 朗读（朗读中按 TV 停）",
+                                  en: "       On plain text: double-tap OK to select it → TV reads it aloud (TV again stops)")))
 
         menu.addItem(buildMicMenu())
 
