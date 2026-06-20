@@ -20,6 +20,8 @@ final class VoiceLoop: NSObject {
     private var lastLoudAt: TimeInterval = 0
     private var listenStartAt: TimeInterval = 0
     private var vadTimer: Timer?
+    private var lastLevel: Float = 0   // 最近电平（诊断 + 调阈值）
+    private var logTick = 0
     private let onsetLevel: Float = 0.05       // 高于此算「在说话」
     private let pauseSec: TimeInterval = 1.1   // 说完后静音多久判定结束
     private let maxTurnSec: TimeInterval = 30  // 单轮硬上限
@@ -36,6 +38,7 @@ final class VoiceLoop: NSObject {
         speaker.onFinish = { [weak self] in self?.startListening() }   // 念完接着听
         dictation.onLevel = { [weak self] lv in
             guard let self else { return }
+            self.lastLevel = lv
             self.onLevel?(lv)
             if self.state == .listening, lv > self.onsetLevel {
                 self.heardSpeech = true
@@ -80,9 +83,14 @@ final class VoiceLoop: NSObject {
     private func tickVAD() {
         guard active, state == .listening else { return }
         let now = ProcessInfo.processInfo.systemUptime
+        logTick += 1
+        if logTick % 5 == 0 {   // ~0.5s 一条：看电平/底噪/静音时长，用来定阈值
+            FileLog.write(String(format: "🎚 VAD lv=%.3f onset=%.3f heard=%@ 静音=%.1fs",
+                                 lastLevel, onsetLevel, heardSpeech ? "是" : "否", now - lastLoudAt))
+        }
         let endBySilence = heardSpeech && (now - lastLoudAt > pauseSec)
         let endByMax     = heardSpeech && (now - listenStartAt > maxTurnSec)
-        if endBySilence || endByMax { endTurn() }
+        if endBySilence || endByMax { FileLog.write("🎚 VAD → 结束本轮（\(endBySilence ? "静音" : "超时")）"); endTurn() }
     }
 
     // MARK: 想

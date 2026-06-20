@@ -529,9 +529,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // 在线语音助手（Claude Code + 连续语音，plan 只读）—— 单独 opt-in，走云端，与本地内核分开
         let assistant = NSMenuItem(title: voiceLoop.active
-                                   ? L.t(zh: "■ 停止语音助手", en: "■ Stop voice assistant")
-                                   : L.t(zh: "🎙 语音助手（连续对话 · 在线 · 只读）", en: "🎙 Voice assistant (online · read-only)"),
+                                   ? L.t(zh: "停止语音助手", en: "Stop voice assistant")
+                                   : L.t(zh: "语音助手（连续对话 · 在线 · 只读）", en: "Voice assistant (online · read-only)"),
                                    action: #selector(openAssistant), keyEquivalent: "")
+        assistant.image = AssistantIcon.image()   // Tabler message-chatbot 图标
         assistant.target = self
         menu.addItem(assistant)
         menu.addItem(.separator())

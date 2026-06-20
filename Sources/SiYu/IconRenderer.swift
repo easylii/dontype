@@ -266,3 +266,27 @@ enum MenuIcon {
         return img
     }
 }
+
+/// 语音助手菜单项图标：Tabler「message-chatbot」描边版（template，跟随菜单浅/深色着色）。
+enum AssistantIcon {
+    private static let paths: [NSBezierPath] = [
+        SVGPath.parse("M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12"),
+        SVGPath.parse("M9.5 9h.01"),
+        SVGPath.parse("M14.5 9h.01"),
+        SVGPath.parse("M9.5 13a3.5 3.5 0 0 0 5 0"),
+    ]
+    static func image(size: CGFloat = 16) -> NSImage {
+        let scale = size / 24.0   // viewBox 24×24
+        let img = NSImage(size: NSSize(width: size, height: size), flipped: true) { _ in
+            let t = NSAffineTransform(); t.scaleX(by: scale, yBy: scale); t.concat()
+            NSColor.black.setStroke()
+            for p in paths {
+                p.lineWidth = 2; p.lineCapStyle = .round; p.lineJoinStyle = .round
+                p.stroke()
+            }
+            return true
+        }
+        img.isTemplate = true
+        return img
+    }
+}
