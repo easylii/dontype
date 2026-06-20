@@ -3,7 +3,7 @@
     <linearGradient id="bodyG" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#eceef1"/><stop offset="1" stop-color="#c4c8cf"/>
     </linearGradient>
-    <clipPath id="typeRC"><rect x="300" y="78" width="0" height="30">
+    <clipPath id="typeRC"><rect x="250" y="78" width="0" height="30">
       <animate attributeName="width" values="0;0;0;124;124;0;0" keyTimes="0;0.28;0.30;0.45;0.50;0.505;1" dur="8s" repeatCount="indefinite"/>
     </rect></clipPath>
     <clipPath id="cardClip"><rect x="1" y="1" width="718" height="198" rx="16"/></clipPath>
@@ -53,35 +53,35 @@
     </circle>
   </g></g>
 
-  <!-- ===== Screen (what the Mac shows) ===== -->
-  <rect x="250" y="56" width="220" height="72" rx="10" fill="#11151c" stroke="#2a2e38"/>
+  <!-- ===== Screen (what the Mac shows) —— 收窄、给右侧字幕腾地方 ===== -->
+  <rect x="232" y="56" width="156" height="72" rx="10" fill="#11151c" stroke="#2a2e38"/>
 
   <!-- step 1: waveform -->
   <g opacity="0">
     <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.04;0.06;0.22;0.24;1" dur="8s" repeatCount="indefinite"/>
     <g fill="#34d399">
-      <rect x="332" y="85" width="6" height="14" rx="3"/>
-      <rect x="346" y="79" width="6" height="26" rx="3"><animate attributeName="height" values="26;14;26" dur="0.5s" repeatCount="indefinite"/><animate attributeName="y" values="79;85;79" dur="0.5s" repeatCount="indefinite"/></rect>
-      <rect x="360" y="73" width="6" height="38" rx="3"><animate attributeName="height" values="38;20;38" dur="0.45s" repeatCount="indefinite"/><animate attributeName="y" values="73;82;73" dur="0.45s" repeatCount="indefinite"/></rect>
-      <rect x="374" y="81" width="6" height="22" rx="3"><animate attributeName="height" values="22;36;22" dur="0.5s" repeatCount="indefinite"/><animate attributeName="y" values="81;74;81" dur="0.5s" repeatCount="indefinite"/></rect>
-      <rect x="388" y="86" width="6" height="12" rx="3"/>
+      <rect x="282" y="85" width="6" height="14" rx="3"/>
+      <rect x="296" y="79" width="6" height="26" rx="3"><animate attributeName="height" values="26;14;26" dur="0.5s" repeatCount="indefinite"/><animate attributeName="y" values="79;85;79" dur="0.5s" repeatCount="indefinite"/></rect>
+      <rect x="310" y="73" width="6" height="38" rx="3"><animate attributeName="height" values="38;20;38" dur="0.45s" repeatCount="indefinite"/><animate attributeName="y" values="73;82;73" dur="0.45s" repeatCount="indefinite"/></rect>
+      <rect x="324" y="81" width="6" height="22" rx="3"><animate attributeName="height" values="22;36;22" dur="0.5s" repeatCount="indefinite"/><animate attributeName="y" values="81;74;81" dur="0.5s" repeatCount="indefinite"/></rect>
+      <rect x="338" y="86" width="6" height="12" rx="3"/>
     </g>
   </g>
 
   <!-- step 2: typed text (revealed left-to-right like typing) -->
   <g clip-path="url(#typeRC)">
-    <text x="360" y="99" text-anchor="middle" font-size="22" font-weight="500" fill="#e6e8ee">Hello world</text>
+    <text x="310" y="99" text-anchor="middle" font-size="22" font-weight="500" fill="#e6e8ee">Hello world</text>
   </g>
 
   <!-- step 3: cancel ✕ -->
   <g opacity="0">
     <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.54;0.56;0.72;0.74;1" dur="8s" repeatCount="indefinite"/>
-    <circle cx="360" cy="92" r="17" fill="#3a1414" stroke="#ff6b6b"/>
-    <path d="M352 84 l16 16 M368 84 l-16 16" stroke="#ff6b6b" stroke-width="3.4" stroke-linecap="round"/>
+    <circle cx="310" cy="92" r="17" fill="#3a1414" stroke="#ff6b6b"/>
+    <path d="M302 84 l16 16 M318 84 l-16 16" stroke="#ff6b6b" stroke-width="3.4" stroke-linecap="round"/>
   </g>
 
   <!-- step 4: cursor moving -->
-  <path d="M343 78 l0 17 l4.4 -4.4 l3.6 6.8 l3.2 -1.2 l-3.6 -6.8 l6.8 0 z" fill="#fff" opacity="0">
+  <path d="M293 78 l0 17 l4.4 -4.4 l3.6 6.8 l3.2 -1.2 l-3.6 -6.8 l6.8 0 z" fill="#fff" opacity="0">
     <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.79;0.81;0.97;0.99;1" dur="8s" repeatCount="indefinite"/>
     <animateTransform attributeName="transform" type="translate" values="0,0;0,0;30,16;58,4;40,22;40,22" keyTimes="0;0.80;0.86;0.91;0.97;1" dur="8s" repeatCount="indefinite" additive="sum"/>
   </path>
@@ -90,33 +90,33 @@
   <!-- step 1 -->
   <g opacity="0">
     <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.02;0.04;0.23;0.25;1" dur="8s" repeatCount="indefinite"/>
-    <rect x="500" y="73" width="34" height="24" rx="6" fill="#34d399"/>
-    <text x="517" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#06281c">TV</text>
-    <text x="544" y="90" font-size="17" font-weight="600" fill="#2B333C">Press TV — talk</text>
-    <text x="500" y="116" font-size="13" fill="#8794A1">live waveform = you're recording</text>
+    <rect x="410" y="73" width="34" height="24" rx="6" fill="#34d399"/>
+    <text x="427" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#06281c">TV</text>
+    <text x="454" y="90" font-size="17" font-weight="600" fill="#2B333C">Press TV — talk</text>
+    <text x="410" y="116" font-size="13" fill="#8794A1">live waveform = you're recording</text>
   </g>
   <!-- step 2 -->
   <g opacity="0">
     <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.27;0.29;0.48;0.50;1" dur="8s" repeatCount="indefinite"/>
-    <rect x="500" y="73" width="34" height="24" rx="6" fill="#34d399"/>
-    <text x="517" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#06281c">TV</text>
-    <text x="544" y="90" font-size="17" font-weight="600" fill="#2B333C">Press TV again — done</text>
-    <text x="500" y="116" font-size="13" fill="#8794A1">your words are typed in at the cursor</text>
+    <rect x="410" y="73" width="34" height="24" rx="6" fill="#34d399"/>
+    <text x="427" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#06281c">TV</text>
+    <text x="454" y="90" font-size="17" font-weight="600" fill="#2B333C">Press TV again — done</text>
+    <text x="410" y="116" font-size="13" fill="#8794A1">your words are typed in at the cursor</text>
   </g>
   <!-- step 3 -->
   <g opacity="0">
     <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.52;0.54;0.73;0.75;1" dur="8s" repeatCount="indefinite"/>
-    <rect x="500" y="73" width="54" height="24" rx="6" fill="#3a3d42"/>
-    <text x="527" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#e6e8ee">‹ / esc</text>
-    <text x="564" y="90" font-size="17" font-weight="600" fill="#2B333C">Cancel</text>
-    <text x="500" y="116" font-size="13" fill="#8794A1">discarded — nothing pasted</text>
+    <rect x="410" y="73" width="54" height="24" rx="6" fill="#3a3d42"/>
+    <text x="437" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#e6e8ee">‹ / esc</text>
+    <text x="474" y="90" font-size="17" font-weight="600" fill="#2B333C">Cancel</text>
+    <text x="410" y="116" font-size="13" fill="#8794A1">discarded — nothing pasted</text>
   </g>
   <!-- step 4 -->
   <g opacity="0">
     <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.77;0.79;0.98;0.995;1" dur="8s" repeatCount="indefinite"/>
-    <rect x="500" y="73" width="74" height="24" rx="6" fill="#3b9eff"/>
-    <text x="537" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#06223f">touchpad</text>
-    <text x="584" y="90" font-size="17" font-weight="600" fill="#2B333C">Swipe</text>
-    <text x="500" y="116" font-size="13" fill="#8794A1">moves the mouse cursor · ↑↓ lists · ←→ Tab</text>
+    <rect x="410" y="73" width="74" height="24" rx="6" fill="#3b9eff"/>
+    <text x="447" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#06223f">touchpad</text>
+    <text x="494" y="90" font-size="17" font-weight="600" fill="#2B333C">Swipe</text>
+    <text x="410" y="116" font-size="13" fill="#8794A1">moves the mouse cursor · ↑↓ lists · ←→ Tab</text>
   </g>
 </svg>
