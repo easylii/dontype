@@ -26,12 +26,18 @@ final class VoiceLoop: NSObject {
         assistant = Assistant(workdir: workdir)
         super.init()
         assistant.onReply = { [weak self] text in self?.startSpeaking(text) }
-        assistant.onTurnEnd = { [weak self] in            // 没出文本（纯工具/空）也要继续听，别卡死
+        assistant.onTurnEnd = { [weak self] in            // 没出文本（纯工具/空）→ 回待命，等再按
             guard let self, self.active, self.state == .thinking else { return }
-            self.startListening()
+            self.state = .idle
         }
-        assistant.onError = { [weak self] m in FileLog.write("🤖 助手出错：\(m)"); self?.startListening() }
-        speaker.onFinish = { [weak self] in self?.startListening() }   // 念完接着听
+        assistant.onError = { [weak self] m in
+            FileLog.write("🤖 助手出错：\(m)")
+            if let self, self.active { self.state = .idle }
+        }
+        speaker.onFinish = { [weak self] in                // 回复念完 → 回待命，等你再按右侧键说
+            guard let self, self.active else { return }
+            self.state = .idle
+        }
         dictation.onLevel = { [weak self] lv in
             guard let self else { return }
             self.onLevel?(lv)
@@ -39,10 +45,22 @@ final class VoiceLoop: NSObject {
         }
     }
 
-    func start() {
+    /// 打开助手到「待命」（显示球、等右侧键说话），不立刻录音。
+    func open() {
         guard !active else { return }
-        active = true; config = Config.load()
-        startListening()
+        active = true; config = Config.load(); state = .idle
+    }
+
+    /// 右侧键（对讲机）：待命/首次 → 开始说；正在说 → 停止并发送；正在念 → 打断、直接说。
+    func talk() {
+        switch state {
+        case .listening: endTurn()                          // 说完 → 停 + 转写发送
+        case .thinking:  break                              // 处理中 → 忽略
+        case .speaking:  speaker.stop(); startListening()   // 打断回复 → 直接说
+        case .idle:
+            if !active { active = true; config = Config.load() }
+            startListening()                                // 开始说
+        }
     }
 
     func stop() {
@@ -76,16 +94,6 @@ final class VoiceLoop: NSObject {
         if heardSpeech, ProcessInfo.processInfo.systemUptime - listenStartAt > maxTurnSec { endTurn() }
     }
 
-    /// 遥控器 OK：手动收尾本轮 —— 听 → 转写并发送；说 → 停朗读、回到听（打断/跳过回复）。
-    func commitTurn() {
-        guard active else { return }
-        switch state {
-        case .listening: endTurn()
-        case .speaking:  speaker.stop(); startListening()
-        default: break
-        }
-    }
-
     // MARK: 想
 
     private func endTurn() {
@@ -94,7 +102,7 @@ final class VoiceLoop: NSObject {
         dictation.stop { [weak self] raw in
             guard let self, self.active else { return }
             let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            if t.isEmpty { self.startListening(); return }   // 没识别到内容 → 继续听
+            if t.isEmpty { self.state = .idle; return }   // 没识别到内容 → 回待命
             FileLog.write("🗣 你：\(t)")
             self.assistant.send(t)
         }

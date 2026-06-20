@@ -80,7 +80,7 @@ final class OrbView: NSView {
     private func applyIcon() {
         let sym: String
         switch state {
-        case .idle:      sym = "mic.slash.fill"
+        case .idle:      sym = "mic"          // 待命：灰色话筒，按右侧键开始说
         case .listening: sym = "mic.fill"
         case .thinking:  sym = "ellipsis"
         case .speaking:  sym = "speaker.wave.2.fill"

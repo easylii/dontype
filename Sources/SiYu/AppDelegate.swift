@@ -126,7 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         gamepad.start()
 
         // 语音助手：编排器 ↔ 状态球
-        voiceLoop.onState = { [weak self] s in self?.voiceOrb.setState(s); if s == .idle { self?.voiceOrb.hide() } }
+        voiceLoop.onState = { [weak self] s in self?.voiceOrb.setState(s) }   // 待命也留着球，关闭才隐藏
         voiceLoop.onLevel = { [weak self] lv in self?.voiceOrb.setLevel(lv) }
         voiceOrb.onStop = { [weak self] in self?.voiceLoop.stop(); self?.voiceOrb.hide(); self?.rebuildMenu() }
 
@@ -212,11 +212,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "tabNext":   postTab(shift: false)
         case "tabPrev":   postTab(shift: true)
         case "click":
-            if voiceLoop.active { voiceLoop.commitTurn() }   // 语音助手中：OK = 发送本轮 / 打断回复
-            else { handleOK() }                              // 否则：单击=激活/点击；鼠标双击=选中这段
+            if voiceLoop.active { voiceLoop.talk() }          // 语音助手中：OK 也当对讲机键用
+            else { handleOK() }                               // 否则：单击=激活/点击；鼠标双击=选中这段
         case "readToggle":
             if speaker.isSpeaking { togglePauseReading() } else { startReading() }
-        case "assistant": openAssistant()     // 侧键：开/关语音助手
+        // 右侧键 = 对讲机：按一下开始说、再按一下停下并发送、它念时按=打断。关助手用菜单/点球。
+        case "assistant": voiceOrb.show(); voiceLoop.talk(); rebuildMenu()
         default: break    // none
         }
     }
@@ -706,10 +707,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openRemoteSetup() { remoteSetup.show() }
 
-    /// 切换语音助手：开 → 显示状态球 + 开始连续对话；再点 → 停。
+    /// 菜单开/关语音助手：开 → 显示状态球、进入「待命」（用右侧键说话）；再点 → 关。
     @objc private func openAssistant() {
         if voiceLoop.active { voiceLoop.stop(); voiceOrb.hide() }
-        else { voiceOrb.show(); voiceLoop.start() }
+        else { voiceOrb.show(); voiceLoop.open() }
         rebuildMenu()
     }
 
