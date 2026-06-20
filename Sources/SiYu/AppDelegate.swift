@@ -308,10 +308,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private let arrowSource = CGEventSource(stateID: .hidSystemState)
     /// 合成一次方向键（按下+抬起），发给当前前台 App。
-    private func postArrow(_ keycode: CGKeyCode) {
-        CGEvent(keyboardEventSource: arrowSource, virtualKey: keycode, keyDown: true)?.post(tap: .cghidEventTap)
-        CGEvent(keyboardEventSource: arrowSource, virtualKey: keycode, keyDown: false)?.post(tap: .cghidEventTap)
-    }
+    private func postArrow(_ keycode: CGKeyCode) { postKey(keycode) }
 
     private func startRecording() {
         if busy { return }

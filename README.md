@@ -10,6 +10,7 @@ Western brand **Dontype** (don't type — just talk), Chinese **丝语**. Double
 - **3-in-1.** Speech → text (dictation), text → speech (read any selected text aloud), and a 5-slot clipboard history — three tools in one tiny menu-bar app. Most dictation tools do just one.
 - **No metered API, no extra subscription.** Recognition runs fully **local** (free, offline, no bandwidth). AI cleanup runs on the **Claude Code / Codex you already have**, via their CLI — no separate Anthropic API key and no per-token API billing. Nothing extra to pay; without either, it just outputs the raw transcription (still free).
 - **5-slot clipboard history.** Every dictation result and every manual copy flows into a 5-item history (deduplicated, source-tagged) — click any to copy it back. In-memory only, sensitive clips skipped.
+- **Works with the Apple TV Remote (gen 2 or 3).** Dictate hands-free from across the room with a Siri Remote: press **TV** to start talking, **TV** again to finish, **Back ‹ / Esc** to cancel, swipe the **touchpad** to move the cursor, and the **arrows** act like Tab between controls. Set it up in the setup wizard's Remote page (an animated demo shows every step).
 
 ## How it works
 
@@ -34,6 +35,10 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 **Clipboard history** — your last 5 clips (dictations + manual copies), click one to copy it back:
 
 ![Clipboard history demo](design/demo-clipboard.svg)
+
+**Apple TV Remote (gen 2 / 3)** — press **TV** to talk, press **TV** again to type your words in at the cursor, **Back ‹ / Esc** to cancel, swipe the **touchpad** to move the mouse:
+
+![Apple TV Remote demo](design/demo-remote.svg)
 
 **Interactive install walkthrough** — open [`design/dontype-install-flow.html`](design/dontype-install-flow.html) in a browser for the full first-run experience (8 screens: Welcome → privacy consent → permissions → model → hotkey → read-aloud → AI → done).
 
@@ -86,6 +91,23 @@ In **any app**, select text (or place the cursor at the start) → **double-tap 
 - Reading downward: it first tries Accessibility to get "the focused field's full text + selection position", reading from the selection start to the end of that text block; if it can't (some web pages / terminals / Electron) it falls back to **reading only the selected span**.
 - Selection fallback: when Accessibility can't get the selection, it synthesizes Cmd+C, reads the clipboard, and **restores** it.
 - Settings: configure voice / rate / trigger key / preview under the settings panel "⑧ Read selection aloud → Configure"; if you have no Premium voice there's an entry point to download one in System Settings.
+
+## Apple TV Remote (gen 2 / 3)
+
+Drive Dontype hands-free from across the room with a **Siri Remote (2nd or 3rd generation)** — no extra hardware; it pairs over Bluetooth like any Mac input device. Turn it on in the setup wizard's **⑧ Remote** page (with the animated walkthrough above); a one-time **Input Monitoring** permission lets the app read the remote's keys.
+
+| Remote | What it does |
+|--------|--------------|
+| **TV** | Start talking — **press again** to finish and type the text in at your cursor |
+| **Back ‹ / Esc** | Cancel — stops instantly, nothing transcribed, nothing pasted |
+| **Center (OK)** | Activate the focused control / send (Return in a text field) |
+| **↑ / ↓** | Move up & down lists, menus and sidebars |
+| **← / →** | Tab / Shift-Tab between controls (links, buttons, fields) |
+| **Touchpad** | Glide the mouse cursor; click with the center button |
+
+Volume, mute and play/pause keep their normal system function. Enabling the remote also switches on macOS **keyboard navigation** (Full Keyboard Access) so Tab can reach buttons, not just text fields.
+
+> The remote's three input channels each use a different macOS API (media keys via a CGEvent tap, the special keys via IOHIDManager, the touch surface via the private MultitouchSupport framework). That last one means the app isn't App-Store-sandboxable — it's a power-user feature you toggle on the Remote page.
 
 ## Privacy
 

@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" width="720" font-family="-apple-system, 'Segoe UI', Roboto, system-ui, sans-serif" role="img" aria-label="Apple TV Remote (gen 2/3): press TV to talk, press again to type your words, Back or Esc to cancel, swipe the touchpad to move the cursor">
+  <defs>
+    <linearGradient id="bodyG" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eceef1"/><stop offset="1" stop-color="#c4c8cf"/>
+    </linearGradient>
+    <clipPath id="typeRC"><rect x="300" y="78" width="0" height="30">
+      <animate attributeName="width" values="0;0;0;124;124;0;0" keyTimes="0;0.28;0.30;0.45;0.50;0.505;1" dur="8s" repeatCount="indefinite"/>
+    </rect></clipPath>
+  </defs>
+
+  <rect x="1" y="1" width="718" height="198" rx="16" fill="#FBFCFD" stroke="#E7EBEF"/>
+  <text x="28" y="32" fill="#8794A1" font-size="12" font-weight="600">APPLE TV REMOTE · GEN 2 / 3</text>
+
+  <!-- ===== Siri Remote (silver body, bottom 1/4 bleeds off the card) ===== -->
+  <g transform="translate(15,30) scale(1.75)">
+    <rect x="37.03" y="3.15" width="24.83" height="94.18" rx="5" fill="url(#bodyG)" stroke="#aab0b8" stroke-width="0.4"/>
+    <rect x="48.4" y="6.6" width="2.1" height="0.8" rx="0.4" fill="#3a3d42"/>
+    <circle cx="56.64" cy="8.15" r="2.3" fill="#1b1b1d"/>
+    <path d="M56.64 7.45 v0.85 M55.99 7.95 a0.82 0.82 0 1 0 1.3 0" fill="none" stroke="#cfd2d7" stroke-width="0.32" stroke-linecap="round"/>
+    <circle cx="49.44" cy="23" r="10.94" fill="#1b1b1d"/>
+    <circle cx="49.44" cy="23" r="6.33" fill="#2a2a2c"/>
+    <g fill="#5a5c60"><circle cx="49.44" cy="14.6" r="0.55"/><circle cx="49.44" cy="31.4" r="0.55"/><circle cx="41" cy="23" r="0.55"/><circle cx="57.9" cy="23" r="0.55"/></g>
+    <!-- back ‹ -->
+    <circle cx="44.28" cy="38.75" r="4.5" fill="#1b1b1d"/>
+    <g transform="translate(39.48,33.95) scale(0.40)"><path d="M15 6l-6 6l6 6" fill="none" stroke="#cfd2d7" stroke-width="0.9" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <!-- TV -->
+    <circle cx="54.6" cy="38.75" r="4.5" fill="#1b1b1d"/>
+    <g transform="translate(51.0,35.0) scale(0.30)" fill="none" stroke="#cfd2d7" stroke-width="0.9" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19l18 0"/><path d="M5 7a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -8"/></g>
+    <!-- play/pause -->
+    <circle cx="44.28" cy="48.9" r="4.5" fill="#1b1b1d"/>
+    <g transform="translate(40.68,45.3) scale(0.30)"><path d="M15 5V19M21 5V19M3 7.2V16.8C3 17.8 3 18.3 3.2 18.5C3.4 18.7 3.6 18.8 3.9 18.8C4.2 18.8 4.6 18.4 5.3 17.7L10.1 12.9C10.4 12.6 10.6 12.4 10.6 12.3C10.7 12.1 10.7 11.9 10.6 11.7C10.6 11.6 10.4 11.4 10.1 11.1L5.3 6.3C4.6 5.6 4.2 5.2 3.9 5.2C3.6 5.2 3.4 5.3 3.2 5.5C3 5.7 3 6.2 3 7.2Z" fill="none" stroke="#cfd2d7" stroke-width="0.9" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <!-- volume +/- -->
+    <rect x="50.1" y="44.4" width="9" height="18.65" rx="4.5" fill="#1b1b1d"/>
+    <path d="M54.6 47.2 v2.6 M53.3 48.5 h2.6" stroke="#cfd2d7" stroke-width="0.55" stroke-linecap="round"/>
+    <path d="M53.3 58 h2.6" stroke="#cfd2d7" stroke-width="0.55" stroke-linecap="round"/>
+    <!-- mute -->
+    <circle cx="44.28" cy="59.05" r="4.5" fill="#1b1b1d"/>
+    <g transform="translate(40.92,55.69) scale(0.28)" fill="none" stroke="#cfd2d7" stroke-width="0.9" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 8a5 5 0 0 1 1.912 4.934m-1.377 2.602a5 5 0 0 1 -.535 .464"/>
+      <path d="M9.069 5.054l.431 -.554a.8 .8 0 0 1 1.5 .5v2m0 4v8a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l1.294 -1.664"/>
+      <path d="M3 3l18 18"/>
+    </g>
+    <!-- highlight overlays (opacity animated per step) -->
+    <circle cx="54.6" cy="38.75" r="4.5" fill="#34d399" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;1;0;0;1;1;0;0" keyTimes="0;0.03;0.05;0.21;0.24;0.30;0.32;0.47;0.50;1" dur="8s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="44.28" cy="38.75" r="4.5" fill="#34d399" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.53;0.55;0.72;0.74;1" dur="8s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="49.44" cy="23" r="10.94" fill="none" stroke="#3b9eff" stroke-width="1" opacity="0">
+      <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.78;0.80;0.97;0.99;1" dur="8s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- ===== Screen (what the Mac shows) ===== -->
+  <rect x="250" y="56" width="220" height="72" rx="10" fill="#11151c" stroke="#2a2e38"/>
+
+  <!-- step 1: waveform -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.04;0.06;0.22;0.24;1" dur="8s" repeatCount="indefinite"/>
+    <g fill="#34d399">
+      <rect x="332" y="85" width="6" height="14" rx="3"/>
+      <rect x="346" y="79" width="6" height="26" rx="3"><animate attributeName="height" values="26;14;26" dur="0.5s" repeatCount="indefinite"/><animate attributeName="y" values="79;85;79" dur="0.5s" repeatCount="indefinite"/></rect>
+      <rect x="360" y="73" width="6" height="38" rx="3"><animate attributeName="height" values="38;20;38" dur="0.45s" repeatCount="indefinite"/><animate attributeName="y" values="73;82;73" dur="0.45s" repeatCount="indefinite"/></rect>
+      <rect x="374" y="81" width="6" height="22" rx="3"><animate attributeName="height" values="22;36;22" dur="0.5s" repeatCount="indefinite"/><animate attributeName="y" values="81;74;81" dur="0.5s" repeatCount="indefinite"/></rect>
+      <rect x="388" y="86" width="6" height="12" rx="3"/>
+    </g>
+  </g>
+
+  <!-- step 2: typed text (revealed left-to-right like typing) -->
+  <g clip-path="url(#typeRC)">
+    <text x="360" y="99" text-anchor="middle" font-size="22" font-weight="500" fill="#e6e8ee">Hello world</text>
+  </g>
+
+  <!-- step 3: cancel ✕ -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.54;0.56;0.72;0.74;1" dur="8s" repeatCount="indefinite"/>
+    <circle cx="360" cy="92" r="17" fill="#3a1414" stroke="#ff6b6b"/>
+    <path d="M352 84 l16 16 M368 84 l-16 16" stroke="#ff6b6b" stroke-width="3.4" stroke-linecap="round"/>
+  </g>
+
+  <!-- step 4: cursor moving -->
+  <path d="M343 78 l0 17 l4.4 -4.4 l3.6 6.8 l3.2 -1.2 l-3.6 -6.8 l6.8 0 z" fill="#fff" opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.79;0.81;0.97;0.99;1" dur="8s" repeatCount="indefinite"/>
+    <animateTransform attributeName="transform" type="translate" values="0,0;0,0;30,16;58,4;40,22;40,22" keyTimes="0;0.80;0.86;0.91;0.97;1" dur="8s" repeatCount="indefinite" additive="sum"/>
+  </path>
+
+  <!-- ===== Step captions (right) ===== -->
+  <!-- step 1 -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.02;0.04;0.23;0.25;1" dur="8s" repeatCount="indefinite"/>
+    <rect x="500" y="73" width="34" height="24" rx="6" fill="#34d399"/>
+    <text x="517" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#06281c">TV</text>
+    <text x="544" y="90" font-size="17" font-weight="600" fill="#2B333C">Press TV — talk</text>
+    <text x="500" y="116" font-size="13" fill="#8794A1">live waveform = you're recording</text>
+  </g>
+  <!-- step 2 -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.27;0.29;0.48;0.50;1" dur="8s" repeatCount="indefinite"/>
+    <rect x="500" y="73" width="34" height="24" rx="6" fill="#34d399"/>
+    <text x="517" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#06281c">TV</text>
+    <text x="544" y="90" font-size="17" font-weight="600" fill="#2B333C">Press TV again — done</text>
+    <text x="500" y="116" font-size="13" fill="#8794A1">your words are typed in at the cursor</text>
+  </g>
+  <!-- step 3 -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.52;0.54;0.73;0.75;1" dur="8s" repeatCount="indefinite"/>
+    <rect x="500" y="73" width="54" height="24" rx="6" fill="#3a3d42"/>
+    <text x="527" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#e6e8ee">‹ / esc</text>
+    <text x="564" y="90" font-size="17" font-weight="600" fill="#2B333C">Cancel</text>
+    <text x="500" y="116" font-size="13" fill="#8794A1">discarded — nothing pasted</text>
+  </g>
+  <!-- step 4 -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.77;0.79;0.98;0.995;1" dur="8s" repeatCount="indefinite"/>
+    <rect x="500" y="73" width="74" height="24" rx="6" fill="#3b9eff"/>
+    <text x="537" y="89" text-anchor="middle" font-size="12" font-weight="700" fill="#06223f">touchpad</text>
+    <text x="584" y="90" font-size="17" font-weight="600" fill="#2B333C">Swipe</text>
+    <text x="500" y="116" font-size="13" fill="#8794A1">moves the mouse cursor · ↑↓ lists · ←→ Tab</text>
+  </g>
+</svg>
