@@ -2,15 +2,18 @@
 
 **English** · [中文](README.zh.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
-Privacy-first voice dictation + read-aloud for Mac, by **Easylii**.
-Western brand **Dontype** (don't type — just talk), Chinese **丝语**. Double-tap **Control** to start talking, tap to stop — local transcription, AI cleanup, auto-paste at the cursor. Everything runs on-device; your voice never leaves your Mac.
+**The ultimate voice companion for vibe coding on Mac**, by **Easylii**. Western brand **Dontype** (don't type — just talk), Chinese **丝语**.
+
+Vibe coding is *talking* to your AI, not typing it all out. Dontype makes your Mac listen: dictate prompts straight into **Claude Code, Cursor, or any field** — double-tap **Control**, talk, and it transcribes locally, strips the fillers, and pastes at your cursor; one button **sends** it. Run the whole loop **hands-free from an Apple TV remote**, and have replies **read back** to you. Everything runs on-device; your voice never leaves your Mac.
 
 ## Highlights
 
+- **Made for vibe coding.** Talk your prompts straight into Claude Code, Cursor, ChatGPT or any text field — dictate, it removes the "um"s and fixes the grammar, pastes at the cursor, and one button **sends** it (Return). Lean back and run the whole loop from an Apple TV remote.
 - **3-in-1.** Speech → text (dictation), text → speech (read any selected text aloud), and a 5-slot clipboard history — three tools in one tiny menu-bar app. Most dictation tools do just one.
 - **No metered API, no extra subscription.** Recognition runs fully **local** (free, offline, no bandwidth). AI cleanup runs on the **Claude Code / Codex you already have**, via their CLI — no separate Anthropic API key and no per-token API billing. Nothing extra to pay; without either, it just outputs the raw transcription (still free).
 - **5-slot clipboard history.** Every dictation result and every manual copy flows into a 5-item history (deduplicated, source-tagged) — click any to copy it back. In-memory only, sensitive clips skipped.
-- **Works with the Apple TV Remote (gen 2 or 3).** Dictate hands-free from across the room with a Siri Remote: press **TV** to start talking, **TV** again to finish, **Back ‹ / Esc** to cancel, swipe the **touchpad** to move the cursor, and the **arrows** act like Tab between controls. Set it up in the setup wizard's Remote page (an animated demo shows every step).
+- **Works with the Apple TV Remote (gen 2 or 3).** Dictate hands-free from across the room with a Siri Remote: press **TV** to start talking, **TV** again to finish, **OK** to send, **Back ‹ / Esc** to cancel, swipe the **touchpad** to move the cursor, and the **arrows** act like Tab between controls. Set it up in the setup wizard's Remote page (an animated demo shows every step).
+- **Talk to Claude Code, out loud** *(experimental)*. An optional voice assistant holds a walkie-talkie-style spoken conversation with Claude Code — press the remote's **side button**, talk, press again, and it reads the answer back. Online + read-only, opt-in, kept separate from the on-device core.
 
 ## How it works
 
@@ -99,10 +102,11 @@ Drive Dontype hands-free from across the room with a **Siri Remote (2nd or 3rd g
 | Remote | What it does |
 |--------|--------------|
 | **TV** | Start talking — **press again** to finish and type the text in at your cursor |
-| **Back ‹ / Esc** | Cancel — stops instantly, nothing transcribed, nothing pasted |
-| **Center (OK)** | Activate the focused control / send (Return in a text field) |
+| **Center (OK)** | **Send** — right after a dictation it presses **Return** (fires off your prompt); elsewhere activates the focused control / clicks at the cursor |
+| **Back ‹ / Esc** | Cancel — stops dictation/read-aloud instantly, nothing transcribed, nothing pasted |
 | **↑ / ↓** | Move up & down lists, menus and sidebars |
 | **← / →** | Tab / Shift-Tab between controls (links, buttons, fields) |
+| **Side button** | Toggle the **voice assistant** (walkie-talkie talk to Claude Code) |
 | **Touchpad** | Glide the mouse cursor; click with the center button |
 
 Volume, mute and play/pause keep their normal system function. Enabling the remote also switches on macOS **keyboard navigation** (Full Keyboard Access) so Tab can reach buttons, not just text fields.
@@ -150,6 +154,12 @@ The AI cleanup backend is auto-selected by priority: `Claude API (fastest) → C
 | `IconRenderer.swift` | menu-bar icon + mic-source icons (SVG paths drawn at runtime) |
 | `HUD.swift` | floating result window / draggable pill / read-aloud waveform |
 | `Paster.swift` | clipboard + synthetic Cmd+V |
+| `RemoteHID.swift` | Apple TV Remote special keys (IOHIDManager, HID report id=251) → actions |
+| `Multitouch.swift` | remote touch surface → mouse cursor (private MultitouchSupport, family 0x91) |
+| `RemoteSetup.swift` | Remote setup / demo page (connection-aware, animated SVG walkthrough) |
+| `GameControllerInput.swift` | Bluetooth gamepad input (dictation / cursor / arrows) |
+| `Assistant.swift` · `VoiceLoop.swift` · `VoiceOrb.swift` | voice assistant: Claude Code stream session, walkie-talkie turn loop, status orb |
+| `AudioDevices.swift` | microphone source selection |
 | `L.swift` | UI localization (zh/en) · `Config.swift` runtime config |
 
 `design/dontype-install-flow.html` is the interactive install-flow prototype (for demo).
