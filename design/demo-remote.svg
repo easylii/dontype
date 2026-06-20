@@ -6,13 +6,14 @@
     <clipPath id="typeRC"><rect x="300" y="78" width="0" height="30">
       <animate attributeName="width" values="0;0;0;124;124;0;0" keyTimes="0;0.28;0.30;0.45;0.50;0.505;1" dur="8s" repeatCount="indefinite"/>
     </rect></clipPath>
+    <clipPath id="cardClip"><rect x="1" y="1" width="718" height="198" rx="16"/></clipPath>
   </defs>
 
   <rect x="1" y="1" width="718" height="198" rx="16" fill="#FBFCFD" stroke="#E7EBEF"/>
   <text x="28" y="32" fill="#8794A1" font-size="12" font-weight="600">APPLE TV REMOTE · GEN 2 / 3</text>
 
-  <!-- ===== Siri Remote (silver body,放大 + 贴底：底部 1/4 沉到卡片下边外、3/4 露出) ===== -->
-  <g transform="translate(-7,38) scale(2.2)">
+  <!-- ===== Siri Remote (silver body,放大 + 贴底 + clip 到卡片：底部 1/4 沉到下边外、3/4 露出) ===== -->
+  <g clip-path="url(#cardClip)"><g transform="translate(-7,38) scale(2.2)">
     <rect x="37.03" y="3.15" width="24.83" height="94.18" rx="5" fill="url(#bodyG)" stroke="#aab0b8" stroke-width="0.4"/>
     <rect x="48.4" y="6.6" width="2.1" height="0.8" rx="0.4" fill="#3a3d42"/>
     <circle cx="56.64" cy="8.15" r="2.3" fill="#1b1b1d"/>
@@ -50,7 +51,7 @@
     <circle cx="49.44" cy="23" r="10.94" fill="none" stroke="#3b9eff" stroke-width="1" opacity="0">
       <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.78;0.80;0.97;0.99;1" dur="8s" repeatCount="indefinite"/>
     </circle>
-  </g>
+  </g></g>
 
   <!-- ===== Screen (what the Mac shows) ===== -->
   <rect x="250" y="56" width="220" height="72" rx="10" fill="#11151c" stroke="#2a2e38"/>
