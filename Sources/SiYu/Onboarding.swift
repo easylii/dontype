@@ -47,6 +47,7 @@ final class Onboarding: NSObject {
     private var axDetail: NSTextField?,     axButton: NSButton?
     private var modelDetail: NSTextField?,  modelButton: NSButton?,  modelBar: NSProgressIndicator?
     private var backendDetail: NSTextField?, backendButton: NSButton?
+    private var cleanupBackendPopup: NSPopUpButton?
     private var hotkeyDetail: NSTextField?
     private var readDetail: NSTextField?,   readButton: NSButton?
     private var remoteDetail: NSTextField?, remoteSwitch: NSButton?
@@ -58,6 +59,7 @@ final class Onboarding: NSObject {
     var onConfigureRead: (() -> Void)?
     var onChangeUILang: ((String) -> Void)?
     var onChangeRecogLang: ((String) -> Void)?
+    var onChangeCleanupBackend: ((String) -> Void)?
     var onChangeRemoteEnabled: ((Bool) -> Void)?
     var onConfigureRemote: (() -> Void)?
 
@@ -99,7 +101,7 @@ final class Onboarding: NSObject {
     private func clearRefs() {
         micDetail = nil; micButton = nil; speechDetail = nil; speechButton = nil
         axDetail = nil; axButton = nil; modelDetail = nil; modelButton = nil; modelBar = nil
-        backendDetail = nil; backendButton = nil; hotkeyDetail = nil
+        backendDetail = nil; backendButton = nil; cleanupBackendPopup = nil; hotkeyDetail = nil
         readDetail = nil; readButton = nil; consentStatus = nil
         remoteDetail = nil; remoteSwitch = nil
     }
@@ -260,6 +262,7 @@ final class Onboarding: NSObject {
                           button: L.t(zh: "测试", en: "Test"), action: #selector(testBackend))
         backendDetail = backend.detail; backendButton = backend.button
         root.addArrangedSubview(backend.view)
+        root.addArrangedSubview(cleanupBackendRow())
 
         let hk = row(title: L.t(zh: "⑦ 开始/结束热键", en: "⑦ Start/stop hotkey"),
                      button: L.t(zh: "设置", en: "Configure"), action: #selector(configureHotkey))
@@ -669,6 +672,41 @@ final class Onboarding: NSObject {
 
     @objc private func recogLangChanged(_ sender: NSPopUpButton) {
         onChangeRecogLang?(Whisper.languages[max(0, sender.indexOfSelectedItem)].code)
+    }
+
+    /// 整理后端手动选择（auto / Claude API / Claude Code / Codex）。
+    private func cleanupBackendRow() -> NSView {
+        let titleLabel = NSTextField(labelWithString: L.t(zh: "　　整理用", en: "    Use backend"))
+        titleLabel.font = .systemFont(ofSize: 12); titleLabel.textColor = .secondaryLabelColor
+        titleLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+        popup.target = self; popup.action = #selector(cleanupBackendChanged(_:))
+        popup.autoenablesItems = false   // 自己控制：没装/缺 key 的置灰
+        for b in Cleaner.backends {
+            let ready = Cleaner.backendReady(b.id, config: config)
+            var title = L.t(zh: b.zh, en: b.en)
+            if b.id != "auto" && !ready {
+                title += b.id == "api" ? L.t(zh: " — 缺 key", en: " — no key")
+                                       : L.t(zh: " — 未安装", en: " — not installed")
+            }
+            popup.addItem(withTitle: title)
+            popup.lastItem?.isEnabled = (b.id == "auto") || ready
+        }
+        if let i = Cleaner.backends.firstIndex(where: { $0.id == config.cleanupBackend }) { popup.selectItem(at: i) }
+        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        cleanupBackendPopup = popup
+
+        let rowStack = NSStackView(views: [titleLabel, popup])
+        rowStack.orientation = .horizontal; rowStack.alignment = .centerY; rowStack.spacing = 12
+        rowStack.translatesAutoresizingMaskIntoConstraints = false
+        rowStack.widthAnchor.constraint(equalToConstant: 424).isActive = true
+        return rowStack
+    }
+
+    @objc private func cleanupBackendChanged(_ sender: NSPopUpButton) {
+        onChangeCleanupBackend?(Cleaner.backends[max(0, sender.indexOfSelectedItem)].id)
+        refresh()   // 立刻刷新「当前后端」那行的名字/可用性
     }
 
     /// 遥控器 / 手柄：键位是固定预设的，这里只「开 / 关」+ 连接状态 +「说明」跳到演示。

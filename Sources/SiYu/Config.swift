@@ -7,6 +7,7 @@ struct Config {
     var apiKey: String?
     var model: String
     var cleanup: Bool
+    var cleanupBackend: String   // AI 整理后端：auto（按可用优先）/ api / claudeCode / codex
     var autoPaste: Bool
     var locale: String       // Apple 备用后端的识别 locale（如 zh-CN / en-US），仅 whisper 缺失时用
     var triggerKey: String   // 双击触发键：control / fn / rightCommand / rightOption / option
@@ -34,6 +35,7 @@ struct Config {
             apiKey: ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"],
             model: "claude-haiku-4-5-20251001",
             cleanup: true,
+            cleanupBackend: "auto",
             autoPaste: true,
             locale: "zh-CN",
             triggerKey: "control",
@@ -58,6 +60,7 @@ struct Config {
             if let v = json["apiKey"] as? String, !v.isEmpty { c.apiKey = v }
             if let v = json["model"] as? String, !v.isEmpty { c.model = v }
             if let v = json["cleanup"] as? Bool { c.cleanup = v }
+            if let v = json["cleanupBackend"] as? String, !v.isEmpty { c.cleanupBackend = v }
             if let v = json["autoPaste"] as? Bool { c.autoPaste = v }
             if let v = json["locale"] as? String, !v.isEmpty { c.locale = v }
             if let v = json["triggerKey"] as? String, !v.isEmpty { c.triggerKey = v }

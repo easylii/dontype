@@ -3,21 +3,53 @@ import Foundation
 /// 把口语转写交给 AI 整理。优先级：
 /// 1. API key（Haiku，~0.5s）→ 2. Claude Code CLI → 3. Codex CLI（都走订阅，~7s）→ 4. 原样返回
 enum Cleaner {
-    /// 菜单/向导展示用：当前会用哪个整理后端
+    /// 可在设置里选的整理后端。auto = 按可用优先（API → Claude Code → Codex → 原样）。
+    static let backends: [(id: String, zh: String, en: String)] = [
+        ("auto",       "自动（按可用优先）",         "Auto (best available)"),
+        ("api",        "Claude API（最快，需 key）", "Claude API (fastest, needs key)"),
+        ("claudeCode", "Claude Code（订阅）",        "Claude Code (subscription)"),
+        ("codex",      "Codex（订阅）",              "Codex (subscription)"),
+    ]
+
+    /// 菜单/向导展示用：当前会用哪个整理后端（结合手动选择 + 可用性）。
     static func backendName(config: Config) -> String {
         if !config.cleanup { return L.t(zh: "已停用", en: "Disabled") }
-        if let k = config.apiKey, !k.isEmpty { return L.t(zh: "Claude API（最快）", en: "Claude API (fastest)") }
-        if claudeCLI != nil { return "Claude Code" }
-        if codexCLI != nil { return "Codex" }
-        return L.t(zh: "无（装 Claude Code 或 Codex 后自动启用）",
-                   en: "None (install Claude Code or Codex)")
+        let hasKey = !(config.apiKey ?? "").isEmpty
+        switch config.cleanupBackend {
+        case "api":        return hasKey ? "Claude API" : L.t(zh: "Claude API（缺 API key）", en: "Claude API (no key)")
+        case "claudeCode": return claudeCLI != nil ? "Claude Code" : L.t(zh: "Claude Code（未安装）", en: "Claude Code (not installed)")
+        case "codex":      return codexCLI != nil ? "Codex" : L.t(zh: "Codex（未安装）", en: "Codex (not installed)")
+        default:
+            if hasKey { return L.t(zh: "自动 → Claude API", en: "Auto → Claude API") }
+            if claudeCLI != nil { return L.t(zh: "自动 → Claude Code", en: "Auto → Claude Code") }
+            if codexCLI != nil { return L.t(zh: "自动 → Codex", en: "Auto → Codex") }
+            return L.t(zh: "无（装 Claude Code 或 Codex 后自动启用）", en: "None (install Claude Code or Codex)")
+        }
     }
 
-    /// 是否有可用整理后端（开启清洗且 API key / Claude Code / Codex 至少其一）。
+    /// claude CLI 路径（在线助手复用同一套探测）。
+    static var claudePath: String? { claudeCLI }
+
+    /// 某个后端现在是否就绪（设置下拉据此把没装/缺 key 的选项置灰）。
+    static func backendReady(_ id: String, config: Config) -> Bool {
+        switch id {
+        case "api":        return !(config.apiKey ?? "").isEmpty
+        case "claudeCode": return claudeCLI != nil
+        case "codex":      return codexCLI != nil
+        default:           return true   // auto
+        }
+    }
+
+    /// 当前选择的后端是否可用（开启清洗 + 对应后端就绪）。
     static func backendAvailable(config: Config) -> Bool {
         guard config.cleanup else { return false }
-        if let k = config.apiKey, !k.isEmpty { return true }
-        return claudeCLI != nil || codexCLI != nil
+        let hasKey = !(config.apiKey ?? "").isEmpty
+        switch config.cleanupBackend {
+        case "api":        return hasKey
+        case "claudeCode": return claudeCLI != nil
+        case "codex":      return codexCLI != nil
+        default:           return hasKey || claudeCLI != nil || codexCLI != nil
+        }
     }
 
     /// 启发式判断：有口水词/重复才走 Claude，干净的直接出。中英都覆盖。
@@ -83,14 +115,27 @@ enum Cleaner {
         }
         // 整理用的 system prompt 按识别语言选（保持与原文相同语言输出）
         let sys = systemPrompt(for: config.recognitionLang)
-        // 运行时降级链：每一档「跑失败」（断网/未登录/超时/空输出）都自动落到下一档，
-        // 最后兜底原文直出。各后端回调 nil 表示失败、应继续往下试。
-        if let key = config.apiKey, !key.isEmpty {
-            cleanViaAPI(trimmed, key: key, config: config, sys: sys) { r in
-                if let r { completion(r) } else { cliChain(trimmed, config: config, sys: sys, completion: completion) }
+        let key = config.apiKey ?? ""
+        // 手动指定某后端 → 只用它，失败/不可用则原文直出（不跨后端兜底，尊重用户选择）；
+        // auto → 运行时降级链：每一档跑失败都自动落到下一档，最后兜底原文。
+        switch config.cleanupBackend {
+        case "api":
+            if !key.isEmpty { cleanViaAPI(trimmed, key: key, config: config, sys: sys) { completion($0 ?? trimmed) } }
+            else { FileLog.write("整理：选了 Claude API 但无 API key，原文直出"); completion(trimmed) }
+        case "claudeCode":
+            if let cli = claudeCLI { cleanViaClaudeCode(trimmed, cli: cli, model: cliAlias(for: config.model), sys: sys) { completion($0 ?? trimmed) } }
+            else { FileLog.write("整理：选了 Claude Code 但未安装，原文直出"); completion(trimmed) }
+        case "codex":
+            if let cli = codexCLI { cleanViaCodex(trimmed, cli: cli, sys: sys) { completion($0 ?? trimmed) } }
+            else { FileLog.write("整理：选了 Codex 但未安装，原文直出"); completion(trimmed) }
+        default:   // auto
+            if !key.isEmpty {
+                cleanViaAPI(trimmed, key: key, config: config, sys: sys) { r in
+                    if let r { completion(r) } else { cliChain(trimmed, config: config, sys: sys, completion: completion) }
+                }
+            } else {
+                cliChain(trimmed, config: config, sys: sys, completion: completion)
             }
-        } else {
-            cliChain(trimmed, config: config, sys: sys, completion: completion)
         }
     }
 

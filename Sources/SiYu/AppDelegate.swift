@@ -23,6 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self?.persist(kv)
     }
 
+    /// 在线语音助手（Claude Code + 语音连续对话，plan 只读），单独 opt-in、走云端。
+    private let voiceLoop = VoiceLoop(workdir: (("~/Documents/SiYu") as NSString).expandingTildeInPath)
+    private let voiceOrb = VoiceOrb()
+
     /// 遥控器设置（画出遥控器 + 实时点亮 + 每键分配动作 + 触摸板鼠标），从设置进入。
     private lazy var remoteSetup = RemoteSetup(remote: remote, touchpad: touchpad) { [weak self] kv in
         guard let self else { return }
@@ -77,6 +81,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             Whisper.configure(modelID: self.config.whisperModel, language: code)
             Whisper.restartServer()   // 识别语言变了，重启识别服务生效
         }
+        Onboarding.shared.onChangeCleanupBackend = { [weak self] id in
+            guard let self else { return }
+            self.config.cleanupBackend = id
+            self.persist(["cleanupBackend": id])
+            self.rebuildMenu()   // 菜单里「AI 整理」那行同步显示新后端
+        }
         Onboarding.shared.onChangeRemoteEnabled = { [weak self] on in
             guard let self else { return }
             self.config.remoteEnabled = on
@@ -114,6 +124,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // 蓝牙手柄：A 键切换听写、左摇杆移光标、十字键方向键、B 键点击（手柄连上即生效）
         gamepad.onToggleDictation = { [weak self] in self?.toggleDictation() }
         gamepad.start()
+
+        // 语音助手：编排器 ↔ 状态球
+        voiceLoop.onState = { [weak self] s in self?.voiceOrb.setState(s); if s == .idle { self?.voiceOrb.hide() } }
+        voiceLoop.onLevel = { [weak self] lv in self?.voiceOrb.setLevel(lv) }
+        voiceOrb.onStop = { [weak self] in self?.voiceLoop.stop(); self?.voiceOrb.hide(); self?.rebuildMenu() }
 
         // Apple TV 遥控器特殊键（id=251）：按设置里的映射执行动作（默认 选择=听写、方向键=导航）。
         // 设置页打开时 remote.suppressed=true，只点亮不执行。需「输入监视」权限，有了才真正监听。
@@ -199,6 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "click":     handleOK()              // 中间 OK：单击=激活/点击；鼠标模式下双击=选中这段（备朗读）
         case "readToggle":
             if speaker.isSpeaking { togglePauseReading() } else { startReading() }
+        case "assistant": openAssistant()     // 侧键：开/关语音助手
         default: break    // none
         }
     }
@@ -511,6 +527,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
+        // 在线语音助手（Claude Code + 连续语音，plan 只读）—— 单独 opt-in，走云端，与本地内核分开
+        let assistant = NSMenuItem(title: voiceLoop.active
+                                   ? L.t(zh: "■ 停止语音助手", en: "■ Stop voice assistant")
+                                   : L.t(zh: "🎙 语音助手（连续对话 · 在线 · 只读）", en: "🎙 Voice assistant (online · read-only)"),
+                                   action: #selector(openAssistant), keyEquivalent: "")
+        assistant.target = self
+        menu.addItem(assistant)
+        menu.addItem(.separator())
+
         // ─── 通用 ───（界面语言、模型、热键、朗读等都在「设置向导」里）
         let setup = NSMenuItem(title: L.t(zh: "设置向导…（界面语言 / 模型 / 热键 / 朗读…）",
                                           en: "Setup Wizard… (language / model / hotkeys / read…)"),
@@ -677,6 +702,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func openRemoteSetup() { remoteSetup.show() }
+
+    /// 切换语音助手：开 → 显示状态球 + 开始连续对话；再点 → 停。
+    @objc private func openAssistant() {
+        if voiceLoop.active { voiceLoop.stop(); voiceOrb.hide() }
+        else { voiceOrb.show(); voiceLoop.start() }
+        rebuildMenu()
+    }
 
     @objc private func openOnboarding() {
         Onboarding.shared.show(paginated: false)   // 菜单：开旧版设置面板（单窗口清单），不走分页向导

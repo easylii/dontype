@@ -31,6 +31,7 @@ final class RemoteHID {
         Btn(code: "d0.7", id: "b4",     zh: "键4",          en: "Button 4",   def: "none"),
         Btn(code: "d0.1", id: "bar",    zh: "长条键",        en: "Bar",        def: "none"),
         Btn(code: "d0.4", id: "power",  zh: "电源 / 顶键",   en: "Power",      def: "none"),
+        Btn(code: "d0.5", id: "side",   zh: "侧键",          en: "Side",       def: "assistant"),  // 唤起语音助手
     ]
     /// 可分配的动作。
     static let actions: [(id: String, zh: String, en: String)] = [
@@ -45,6 +46,7 @@ final class RemoteHID {
         ("tabPrev",    "Shift+Tab 上一个控件", "Shift+Tab (prev)"),
         ("click",      "OK：发送/激活",   "OK: send/activate"),
         ("readToggle", "朗读 暂停/继续",  "Read pause/resume"),
+        ("assistant",  "语音助手 开关",   "Voice assistant on/off"),
     ]
     static func id(forCode code: String) -> String? { buttons.first { $0.code == code }?.id }
     static func defaultAction(_ code: String) -> String { buttons.first { $0.code == code }?.def ?? "none" }
