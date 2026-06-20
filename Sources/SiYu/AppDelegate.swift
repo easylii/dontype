@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var busy = false
     private var lastRemoteArrowAt: TimeInterval = 0   // 最近一次遥控器方向键导航的时刻（OK 用它和触摸板比，判断有没有高亮）
     private var lastOKAt: TimeInterval = 0            // 上次按 OK 的时刻（判 double-OK）
+    private var lastPasteAt: TimeInterval = 0         // 最近一次听写粘贴的时刻（之后按 OK = 回车发送）
     private var readArmed = false                     // 刚 double-OK 选了文字 → 下次 TV 改成朗读
     private var readArmedAt: TimeInterval = 0
 
@@ -243,6 +244,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     ///    网页/Electron 读不到焦点（恒 nil）→ 发回车，激活 Tab/方向键聚焦的那一项（等同点它）。
     ///  • 触摸板更近（在指鼠标）/ 从没导航 → 在光标处左键单击。
     private func postClickOrSend() {
+        // 刚听写粘贴完（10s 内）或焦点就是输入框 → OK = 回车（把内容发出去）。
+        // 网页/Electron 读不到焦点，就靠「刚粘贴过」这个信号兜底。
+        if ProcessInfo.processInfo.systemUptime - lastPasteAt < 10
+            || (focusedElement().map(isTextInput) ?? false) {
+            postKey(36); return   // 36 = Return
+        }
         let hasHighlight = lastRemoteArrowAt > MultitouchRemote.lastMoveUptime   // 方向键比触摸板更近 = 有高亮
         guard hasHighlight else { postClick(); return }                          // 没高亮 → 点鼠标光标处
         if let el = focusedElement() {                                           // 原生 App：直接激活聚焦的高亮控件
@@ -421,7 +428,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             Cleaner.clean(text, config: self.config) { cleaned in
                 let final = cleaned.isEmpty ? text : cleaned
                 let doPaste = paste && self.config.autoPaste
-                if doPaste { Paster.paste(final) }   // paste 内部会先写剪贴板
+                if doPaste {
+                    Paster.paste(final)   // paste 内部会先写剪贴板
+                    self.lastPasteAt = ProcessInfo.processInfo.systemUptime   // 之后按 OK = 回车发送
+                }
                 self.hud.showResult(final, pasted: doPaste)
                 RecallStore.shared.addFromApp(final)  // 进剪贴历史（来源：转写）；onChange 会刷新菜单
                 self.setIcon(.idle)
