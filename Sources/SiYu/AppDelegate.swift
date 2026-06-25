@@ -138,7 +138,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         voiceLoop.onState = { [weak self] s in
             guard let self else { return }
             self.voiceOrb.setState(s)                                // 待命也留着球，关闭才隐藏
-            self.assistantHotkey.recordingActive = self.voiceLoop.active   // 激活时才让单击(发送)/Esc(关闭)生效
+            // 只在「正在说」时让单击=停止发送（recordingActive 会吞掉双击）；待命/念回复时 false → 双击可开始/打断。
+            self.assistantHotkey.recordingActive = (s == .listening)
+            self.assistantHotkey.escActive = self.voiceLoop.active   // 激活期间 Esc 随时能关
         }
         voiceLoop.onLevel = { [weak self] lv in self?.voiceOrb.setLevel(lv) }
         voiceOrb.onStop = { [weak self] in self?.voiceLoop.stop(); self?.voiceOrb.hide(); self?.rebuildMenu() }

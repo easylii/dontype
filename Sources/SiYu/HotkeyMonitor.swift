@@ -49,6 +49,8 @@ final class HotkeyMonitor {
     var onEscape: (() -> Void)?
     /// 录音会话进行中（影响：触发键按下即停、Esc 被接管）
     var recordingActive = false
+    /// 单独控制 Esc 接管（不影响单/双击判定）：语音助手激活时置 true，让 Esc 随时能关闭它。
+    var escActive = false
     /// 测试模式：检测到双击只回调 onTestDoubleTap、不触发录音（热键设置窗口用）
     var testMode = false
     /// 测试模式下检测到双击触发键 —— 主线程
@@ -185,7 +187,7 @@ final class HotkeyMonitor {
 
         if type == .keyDown {
             let kc = event.getIntegerValueField(.keyboardEventKeycode)
-            if kc == 53, recordingActive {    // Esc：录音中接管，事件不下传
+            if kc == 53, recordingActive || escActive {    // Esc：录音中 / 助手激活时接管，事件不下传
                 FileLog.write("Esc")
                 DispatchQueue.main.async { self.onEscape?() }
                 return false

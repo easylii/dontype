@@ -33,6 +33,9 @@ final class Assistant {
         p.currentDirectoryURL = URL(fileURLWithPath: workdir)
         p.arguments = ["-p", "--verbose",
                        "--model", "sonnet",                  // 对话用 Sonnet：比默认快
+                       // 当成快问快答的语音助手：直接作答、别探索读文件（省掉工具往返 = 思考更快），纯文本
+                       "--append-system-prompt",
+                       "You are a fast voice assistant. Reply concisely in 1–2 short sentences, in the same language the user spoke. Answer directly from what you already know — do NOT read files, search, run commands, or use any tools unless the user explicitly asks. Plain text only, no markdown.",
                        "--input-format", "stream-json",
                        "--output-format", "stream-json",
                        "--permission-mode", "plan",          // 阶段①：只读，不执行副作用
