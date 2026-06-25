@@ -51,7 +51,7 @@ final class VoiceLoop: NSObject {
         active = true; config = Config.load(); state = .idle
     }
 
-    /// 右侧键（对讲机）：待命/首次 → 开始说；正在说 → 停止并发送；正在念 → 打断、直接说。
+    /// 遥控器侧键（一键对讲）：待命/首次 → 开始说；正在说 → 停止并发送；正在念 → 打断、直接说。
     func talk() {
         switch state {
         case .listening: endTurn()                          // 说完 → 停 + 转写发送
@@ -60,6 +60,26 @@ final class VoiceLoop: NSObject {
         case .idle:
             if !active { active = true; config = Config.load() }
             startListening()                                // 开始说
+        }
+    }
+
+    /// 键盘「双击」= 开始说（待命/首次 → 录音；正在念 → 打断后直接说；已在说则忽略）。
+    func beginTalk() {
+        switch state {
+        case .listening, .thinking: break
+        case .speaking: speaker.stop(); startListening()
+        case .idle:
+            if !active { active = true; config = Config.load() }
+            startListening()
+        }
+    }
+
+    /// 键盘「单击」= 停止说（正在说 → 转写发送；正在念 → 跳过回复回待命；其它忽略）。
+    func endTalk() {
+        switch state {
+        case .listening: endTurn()
+        case .speaking:  speaker.stop(); state = .idle
+        default:         break
         }
     }
 

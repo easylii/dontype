@@ -132,11 +132,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         voiceLoop.onLevel = { [weak self] lv in self?.voiceOrb.setLevel(lv) }
         voiceOrb.onStop = { [weak self] in self?.voiceLoop.stop(); self?.voiceOrb.hide(); self?.rebuildMenu() }
 
-        // 语音助手键盘触发：双击 = 对讲机键（开 / 说完发送 / 打断），不用遥控器也能用
+        // 语音助手键盘触发（像 TTS 一样）：双击 = 开始说 · 单击 = 停止并发送 · Esc = 关闭
         assistantHotkey.setTrigger(Trigger.from(config.assistantKey))
         assistantHotkey.onDoubleTap = { [weak self] in
             guard let self else { return }
-            self.voiceOrb.show(); self.voiceLoop.talk(); self.rebuildMenu()
+            self.voiceOrb.show(); self.voiceLoop.beginTalk(); self.rebuildMenu()
+        }
+        assistantHotkey.onSingleTap = { [weak self] in self?.voiceLoop.endTalk() }
+        assistantHotkey.onEscape = { [weak self] in
+            guard let self, self.voiceLoop.active else { return }
+            self.voiceLoop.stop(); self.voiceOrb.hide(); self.rebuildMenu()
         }
         assistantHotkey.start()
 
@@ -559,8 +564,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         assistant.image = AssistantIcon.image()   // Tabler message-chatbot 图标
         assistant.target = self
         menu.addItem(assistant)
-        menu.addItem(hintItem(L.t(zh: "　双击 \(Trigger.from(config.assistantKey).label) 说话 · 再按发送 · 念时按打断（侧键同效）",
-                                  en: "  double-tap \(Trigger.from(config.assistantKey).label) to talk · again to send · interrupt while speaking")))
+        menu.addItem(hintItem(L.t(zh: "　双击 \(Trigger.from(config.assistantKey).label) 说话 · 单击停止并发送 · Esc 关闭（遥控器侧键也行）",
+                                  en: "  double-tap \(Trigger.from(config.assistantKey).label) to talk · tap to send · Esc to close (or remote side key)")))
         menu.addItem(.separator())
 
         // ─── 通用 ───（界面语言、模型、热键、朗读等都在「设置向导」里）

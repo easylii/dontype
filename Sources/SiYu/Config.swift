@@ -50,7 +50,7 @@ struct Config {
             whisperModel: "large-v3-turbo",
             recognitionLang: "auto",   // 自动检测：对所有主推语言开箱即用
             readKey: "rightCommand",
-            assistantKey: "rightOption",
+            assistantKey: "fn",
             readLang: "auto",
             readVoice: "",
             readRate: 0.5,
