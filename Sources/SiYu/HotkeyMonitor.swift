@@ -51,6 +51,9 @@ final class HotkeyMonitor {
     var recordingActive = false
     /// 单独控制 Esc 接管（不影响单/双击判定）：语音助手激活时置 true，让 Esc 随时能关闭它。
     var escActive = false
+    /// 「轻点切换」模式（语音助手激活后用）：抬起时判定的「干净单击」（没夹别的键）触发 onSingleTap，
+    /// 这样 ⌘+C/⌘+V 不会误触，且每次单击都切换对讲，无需双击。
+    var tapToggleMode = false
     /// 测试模式：检测到双击只回调 onTestDoubleTap、不触发录音（热键设置窗口用）
     var testMode = false
     /// 测试模式下检测到双击触发键 —— 主线程
@@ -225,7 +228,14 @@ final class HotkeyMonitor {
             sawOther = hasOtherModifier
         } else if !pressed && keyHeld {
             keyHeld = false
-            if !sawOther { registerTap() }
+            guard !sawOther else { return true }              // 夹了别的键（⌘+C 等）→ 不算
+            if tapToggleMode {                                // 助手激活：干净单击 = 切换对讲（无需双击）
+                lastTapTime = 0
+                FileLog.write("● 切换 \(trigger.label)")
+                DispatchQueue.main.async { self.onSingleTap?() }
+            } else {
+                registerTap()                                 // 未激活：双击才激活
+            }
         }
         return true
     }

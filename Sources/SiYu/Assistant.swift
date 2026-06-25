@@ -47,6 +47,11 @@ final class Assistant {
             guard !d.isEmpty else { return }
             DispatchQueue.main.async { self?.ingest(d) }
         }
+        errPipe.fileHandleForReading.readabilityHandler = { h in            // stderr：别再吞错误
+            let d = h.availableData
+            guard !d.isEmpty, let s = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return }
+            FileLog.write("🤖 stderr: \(s.prefix(300))")
+        }
         p.terminationHandler = { [weak self] _ in
             DispatchQueue.main.async { self?.running = false }
         }
@@ -96,6 +101,7 @@ final class Assistant {
                 }
             case "result":
                 let final = (o["result"] as? String) ?? turnText
+                FileLog.write("🤖 回复(\(final.count)字): \(final.prefix(60))")
                 if !final.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { onReply?(final) }
                 onTurnEnd?()
             case "system":

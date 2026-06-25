@@ -138,20 +138,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         voiceLoop.onState = { [weak self] s in
             guard let self else { return }
             self.voiceOrb.setState(s)                                // 待命也留着球，关闭才隐藏
-            // 只在「正在说」时让单击=停止发送（recordingActive 会吞掉双击）；待命/念回复时 false → 双击可开始/打断。
-            self.assistantHotkey.recordingActive = (s == .listening)
+            // 激活后进入「轻点切换」：干净单击 = 切换对讲（不抢 ⌘ 快捷键，无需双击）；未激活时双击才激活。
+            self.assistantHotkey.tapToggleMode = self.voiceLoop.active
             self.assistantHotkey.escActive = self.voiceLoop.active   // 激活期间 Esc 随时能关
         }
         voiceLoop.onLevel = { [weak self] lv in self?.voiceOrb.setLevel(lv) }
         voiceOrb.onStop = { [weak self] in self?.voiceLoop.stop(); self?.voiceOrb.hide(); self?.rebuildMenu() }
 
-        // 语音助手键盘触发（像 TTS 一样）：双击 = 开始说 · 单击 = 停止并发送 · Esc = 关闭
+        // 语音助手键盘触发：双击 = 激活（并开始说）；激活后单击 = 切换（说 / 停发送 / 打断）；Esc = 关闭
         assistantHotkey.setTrigger(Trigger.from(config.assistantKey))
         assistantHotkey.onDoubleTap = { [weak self] in
             guard let self else { return }
             self.voiceOrb.show(); self.voiceLoop.beginTalk(); self.rebuildMenu()
         }
-        assistantHotkey.onSingleTap = { [weak self] in self?.voiceLoop.endTalk() }
+        assistantHotkey.onSingleTap = { [weak self] in self?.voiceLoop.talk() }   // 激活后：单击切换说/停发送/打断
         assistantHotkey.onEscape = { [weak self] in
             guard let self, self.voiceLoop.active else { return }
             self.voiceLoop.stop(); self.voiceOrb.hide(); self.rebuildMenu()
@@ -577,8 +577,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         assistant.image = AssistantIcon.image()   // Tabler message-chatbot 图标
         assistant.target = self
         menu.addItem(assistant)
-        menu.addItem(hintItem(L.t(zh: "　双击 \(Trigger.from(config.assistantKey).label) 说话 · 单击停止并发送 · Esc 关闭（遥控器侧键也行）",
-                                  en: "  double-tap \(Trigger.from(config.assistantKey).label) to talk · tap to send · Esc to close (or remote side key)")))
+        menu.addItem(hintItem(L.t(zh: "　双击 \(Trigger.from(config.assistantKey).label) 激活 · 之后单击 说/停发送/继续 · Esc 关闭",
+                                  en: "  double-tap \(Trigger.from(config.assistantKey).label) to start · then single-tap to talk/send/continue · Esc to close")))
         menu.addItem(.separator())
 
         // ─── 通用 ───（界面语言、模型、热键、朗读等都在「设置向导」里）
