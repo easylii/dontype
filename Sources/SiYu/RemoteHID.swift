@@ -17,6 +17,12 @@ final class RemoteHID {
 
     static let reportID = 251
 
+    // 遥控器识别：名字含 "Remote"（老情况）失效后（重新配对后蓝牙名会变成序列号），改按 Apple 厂商 + 产品号认。
+    static let appleHIDVendor = 1452          // 0x05AC，IOHIDManager 用
+    static let siriRemotePID  = 33028         // 0x8104，Siri Remote 的 HID 产品号
+    static let appleBTVendor  = "0x004C"      // system_profiler 蓝牙厂商号
+    static let siriRemoteBTPID = "0x0314"     // system_profiler 蓝牙产品号
+
     /// 遥控器各键的标准定义（同型号 Apple TV Remote 的 id=251 位码一致，故可内置默认）。
     struct Btn { let code: String; let id: String; let zh: String; let en: String; let def: String }
     static let buttons: [Btn] = [
@@ -63,7 +69,16 @@ final class RemoteHID {
         guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let arr = json["SPBluetoothDataType"] as? [[String: Any]], let bt = arr.first,
               let conn = bt["device_connected"] as? [[String: Any]] else { return false }
-        return conn.contains { dict in dict.keys.contains { $0.localizedCaseInsensitiveContains("Remote") } }
+        // 认遥控器：名字含 "Remote"（老情况），或 Apple 厂商 + Siri Remote 产品号（重新配对后名字会变成序列号）。
+        return conn.contains { entry in
+            entry.contains { name, value in
+                if name.localizedCaseInsensitiveContains("Remote") { return true }
+                guard let info = value as? [String: Any] else { return false }
+                let vid = (info["device_vendorID"] as? String) ?? ""
+                let pid = (info["device_productID"] as? String) ?? ""
+                return vid.localizedCaseInsensitiveContains("004C") && pid.localizedCaseInsensitiveContains("0314")
+            }
+        }
     }
 
     static var hasAccess: Bool { IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted }
@@ -96,7 +111,12 @@ final class RemoteHID {
 
     private func attach(_ device: IOHIDDevice) {
         let name = (IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String) ?? ""
-        guard name.contains("Remote") else { return }   // 只认遥控器，过滤鼠标/键盘
+        let vid  = (IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int) ?? 0
+        let pid  = (IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int) ?? 0
+        // 名字含 Remote（老情况），或 Apple 厂商 + Siri Remote 产品号（重新配对后名字变序列号）—— 过滤鼠标/键盘
+        guard name.localizedCaseInsensitiveContains("Remote")
+                || (vid == RemoteHID.appleHIDVendor && pid == RemoteHID.siriRemotePID) else { return }
+        FileLog.write(String(format: "🎛 接管遥控器接口 name=%@ vid=0x%x pid=0x%x", name, vid, pid))
         dumpInfo(device)                                  // 打印这个接口的 usage + 输入元素（看有没有触摸/坐标）
         let len = 64
         let buf = UnsafeMutablePointer<UInt8>.allocate(capacity: len)
