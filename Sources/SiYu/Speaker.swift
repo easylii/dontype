@@ -23,12 +23,24 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
 
     func speak(_ text: String, voiceID: String, lang: String, rate: Double) {
         synth.stopSpeaking(at: .immediate)
-        let u = AVSpeechUtterance(string: text)
+        let clean = Speaker.cleanForSpeech(text)
+        let u = AVSpeechUtterance(string: clean)
         u.rate = Float(max(0, min(1, rate)))
-        u.voice = Speaker.pickVoice(text: text, preferredID: voiceID, preferredLang: lang)
+        u.voice = Speaker.pickVoice(text: clean, preferredID: voiceID, preferredLang: lang)
         finished = false
         pending = 1
         synth.speak(u)
+    }
+
+    /// 朗读前清掉会让合成器「乱读」或啰嗦的 Markdown 标记，只留可读文字。
+    /// 实测 `#` 会把 AVSpeech 读飞；反引号/星号/波浪号是噪音；链接只留文字。
+    static func cleanForSpeech(_ text: String) -> String {
+        var s = text
+        s = s.replacingOccurrences(of: "\\[([^\\]]*)\\]\\([^)]*\\)", with: "$1", options: .regularExpression) // [文字](url)→文字
+        s = s.replacingOccurrences(of: "(?m)^[ \\t]*[#>]+[ \\t]*", with: "", options: .regularExpression)      // 行首 # 标题 / > 引用
+        s = s.replacingOccurrences(of: "(?m)^[ \\t]*[-*+][ \\t]+", with: "", options: .regularExpression)       // 行首列表符
+        s = s.replacingOccurrences(of: "[#*`~]", with: "", options: .regularExpression)                         // 行内 # * ` ~
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// 暂停 ⇄ 继续；返回切换后的「是否暂停」

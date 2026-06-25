@@ -462,7 +462,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.speaker.speak(text, voiceID: self.config.readVoice, lang: self.config.readLang, rate: self.config.readRate)
                 self.readHotkey.recordingActive = true
                 self.hud.showSpeaking(paused: false, under: self.statusItemScreenRect())
-                FileLog.write("朗读开始（\(text.count) 字，嗓音=\(self.config.readVoice.isEmpty ? "自动" : self.config.readVoice)）")
+                FileLog.write("朗读开始（\(text.count) 字）：「\(text.prefix(120))」")   // 记内容：定位是抓错还是念飞
             }
         }
     }
