@@ -427,6 +427,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             Cleaner.clean(text, config: self.config) { cleaned in
                 let final = cleaned.isEmpty ? text : cleaned
+                FileLog.write("整理后：「\(final.prefix(100))」")   // 对照原始转写，查清洗有没有改飞
                 let doPaste = paste && self.config.autoPaste
                 if doPaste {
                     Paster.paste(final)   // paste 内部会先写剪贴板
