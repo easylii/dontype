@@ -135,7 +135,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         gamepad.start()
 
         // 语音助手：编排器 ↔ 状态球
-        voiceLoop.onState = { [weak self] s in self?.voiceOrb.setState(s) }   // 待命也留着球，关闭才隐藏
+        voiceLoop.onState = { [weak self] s in
+            guard let self else { return }
+            self.voiceOrb.setState(s)                                // 待命也留着球，关闭才隐藏
+            self.assistantHotkey.recordingActive = self.voiceLoop.active   // 激活时才让单击(发送)/Esc(关闭)生效
+        }
         voiceLoop.onLevel = { [weak self] lv in self?.voiceOrb.setLevel(lv) }
         voiceOrb.onStop = { [weak self] in self?.voiceLoop.stop(); self?.voiceOrb.hide(); self?.rebuildMenu() }
 
