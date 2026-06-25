@@ -28,6 +28,7 @@ struct Trigger {
         Trigger(id: "control", label: "Control", keycodes: [59, 62], mask: .maskControl),
         Trigger(id: "fn", label: "Fn (🌐)", keycodes: [63], mask: .maskSecondaryFn),
         Trigger(id: "rightCommand", label: "右 ⌘", keycodes: [54], mask: .maskCommand),
+        Trigger(id: "leftCommand", label: "左 ⌘", keycodes: [55], mask: .maskCommand),
         Trigger(id: "rightOption", label: "右 Option", keycodes: [61], mask: .maskAlternate),
         Trigger(id: "option", label: "Option", keycodes: [58, 61], mask: .maskAlternate),
     ]
