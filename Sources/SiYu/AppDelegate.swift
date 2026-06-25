@@ -4,6 +4,7 @@ import ApplicationServices
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let hotkey = HotkeyMonitor()
     private let readHotkey = HotkeyMonitor()   // 朗读选中文字的独立触发键
+    private let assistantHotkey = HotkeyMonitor()   // 语音助手触发键（双击 = 对讲机）
     private let gamepad = GameControllerInput() // 蓝牙手柄：A 键听写、摇杆移光标、十字键方向键
     private let remote = RemoteHID()            // Apple TV 遥控器特殊键（id=251）：选择/方向/菜单…
     private let touchpad = MultitouchRemote()   // 遥控器触摸面 → 鼠标（私有 MultitouchSupport，可选）
@@ -131,6 +132,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         voiceLoop.onLevel = { [weak self] lv in self?.voiceOrb.setLevel(lv) }
         voiceOrb.onStop = { [weak self] in self?.voiceLoop.stop(); self?.voiceOrb.hide(); self?.rebuildMenu() }
 
+        // 语音助手键盘触发：双击 = 对讲机键（开 / 说完发送 / 打断），不用遥控器也能用
+        assistantHotkey.setTrigger(Trigger.from(config.assistantKey))
+        assistantHotkey.onDoubleTap = { [weak self] in
+            guard let self else { return }
+            self.voiceOrb.show(); self.voiceLoop.talk(); self.rebuildMenu()
+        }
+        assistantHotkey.start()
+
         // Apple TV 遥控器特殊键（id=251）：按设置里的映射执行动作（默认 选择=听写、方向键=导航）。
         // 设置页打开时 remote.suppressed=true，只点亮不执行。需「输入监视」权限，有了才真正监听。
         remote.onButtonEdge = { [weak self] code, down in
@@ -161,6 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 if AXIsProcessTrusted() {
                     self.hotkey.start()
                     self.readHotkey.start()
+                    self.assistantHotkey.start()
                     if self.hotkey.isActive && self.readHotkey.isActive {
                         self.retryTimer?.invalidate()
                         self.retryTimer = nil
@@ -549,6 +559,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         assistant.image = AssistantIcon.image()   // Tabler message-chatbot 图标
         assistant.target = self
         menu.addItem(assistant)
+        menu.addItem(hintItem(L.t(zh: "　双击 \(Trigger.from(config.assistantKey).label) 说话 · 再按发送 · 念时按打断（侧键同效）",
+                                  en: "  double-tap \(Trigger.from(config.assistantKey).label) to talk · again to send · interrupt while speaking")))
         menu.addItem(.separator())
 
         // ─── 通用 ───（界面语言、模型、热键、朗读等都在「设置向导」里）
