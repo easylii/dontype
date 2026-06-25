@@ -48,6 +48,7 @@ final class Onboarding: NSObject {
     private var modelDetail: NSTextField?,  modelButton: NSButton?,  modelBar: NSProgressIndicator?
     private var backendDetail: NSTextField?, backendButton: NSButton?
     private var cleanupBackendPopup: NSPopUpButton?
+    private var assistantKeyPopup: NSPopUpButton?
     private var hotkeyDetail: NSTextField?
     private var readDetail: NSTextField?,   readButton: NSButton?
     private var remoteDetail: NSTextField?, remoteSwitch: NSButton?
@@ -60,6 +61,7 @@ final class Onboarding: NSObject {
     var onChangeUILang: ((String) -> Void)?
     var onChangeRecogLang: ((String) -> Void)?
     var onChangeCleanupBackend: ((String) -> Void)?
+    var onChangeAssistantKey: ((String) -> Void)?
     var onChangeRemoteEnabled: ((Bool) -> Void)?
     var onConfigureRemote: (() -> Void)?
 
@@ -101,7 +103,7 @@ final class Onboarding: NSObject {
     private func clearRefs() {
         micDetail = nil; micButton = nil; speechDetail = nil; speechButton = nil
         axDetail = nil; axButton = nil; modelDetail = nil; modelButton = nil; modelBar = nil
-        backendDetail = nil; backendButton = nil; cleanupBackendPopup = nil; hotkeyDetail = nil
+        backendDetail = nil; backendButton = nil; cleanupBackendPopup = nil; assistantKeyPopup = nil; hotkeyDetail = nil
         readDetail = nil; readButton = nil; consentStatus = nil
         remoteDetail = nil; remoteSwitch = nil
     }
@@ -275,6 +277,7 @@ final class Onboarding: NSObject {
                      button: L.t(zh: "设置", en: "Configure"), action: #selector(readButtonTapped))
         readDetail = rd.detail; readButton = rd.button
         root.addArrangedSubview(rd.view)
+        root.addArrangedSubview(assistantKeyRow())
 
         root.addArrangedSubview(uiLangRow())
 
@@ -707,6 +710,30 @@ final class Onboarding: NSObject {
     @objc private func cleanupBackendChanged(_ sender: NSPopUpButton) {
         onChangeCleanupBackend?(Cleaner.backends[max(0, sender.indexOfSelectedItem)].id)
         refresh()   // 立刻刷新「当前后端」那行的名字/可用性
+    }
+
+    /// 语音助手触发键：双击它 = 对讲机（开始说 / 单击停止发送 / Esc 关闭）。
+    private func assistantKeyRow() -> NSView {
+        let titleLabel = NSTextField(labelWithString: L.t(zh: "语音助手键（双击说话）", en: "Voice assistant key (double-tap)"))
+        titleLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        titleLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+        popup.target = self; popup.action = #selector(assistantKeyChanged(_:))
+        for t in Trigger.all { popup.addItem(withTitle: t.label) }
+        if let i = Trigger.all.firstIndex(where: { $0.id == config.assistantKey }) { popup.selectItem(at: i) }
+        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        assistantKeyPopup = popup
+
+        let rowStack = NSStackView(views: [titleLabel, popup])
+        rowStack.orientation = .horizontal; rowStack.alignment = .centerY; rowStack.spacing = 12
+        rowStack.translatesAutoresizingMaskIntoConstraints = false
+        rowStack.widthAnchor.constraint(equalToConstant: 424).isActive = true
+        return rowStack
+    }
+
+    @objc private func assistantKeyChanged(_ sender: NSPopUpButton) {
+        onChangeAssistantKey?(Trigger.all[max(0, sender.indexOfSelectedItem)].id)
     }
 
     /// 遥控器 / 手柄：键位是固定预设的，这里只「开 / 关」+ 连接状态 +「说明」跳到演示。

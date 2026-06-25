@@ -89,6 +89,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.persist(["cleanupBackend": id])
             self.rebuildMenu()   // 菜单里「AI 整理」那行同步显示新后端
         }
+        Onboarding.shared.onChangeAssistantKey = { [weak self] id in
+            guard let self else { return }
+            self.config.assistantKey = id
+            self.persist(["assistantKey": id])
+            self.assistantHotkey.setTrigger(Trigger.from(id))   // 立刻换键
+            self.rebuildMenu()
+        }
         Onboarding.shared.onChangeRemoteEnabled = { [weak self] on in
             guard let self else { return }
             self.config.remoteEnabled = on
