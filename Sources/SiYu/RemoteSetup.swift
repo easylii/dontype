@@ -586,7 +586,7 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
       .btn{ fill:#1b1b1d; } .ic{ stroke:#cfd2d7; fill:none; }
       .dot{ fill:#5a5c60; } .on{ fill:#34d399 !important; }
     </style>
-    <svg viewBox="34 0 62 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+    <svg viewBox="35.5 0 28 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
       <defs><linearGradient id="bodyG" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0" stop-color="#eceef1"/><stop offset="1" stop-color="#c4c8cf"/></linearGradient></defs>
       <rect x="37.03" y="3.15" width="24.83" height="94.18" rx="5" fill="url(#bodyG)" stroke="#aab0b8" stroke-width="0.4"/>
