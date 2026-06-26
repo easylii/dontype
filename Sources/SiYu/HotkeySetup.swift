@@ -8,9 +8,16 @@ import ApplicationServices
 final class HotkeySetup: NSObject, NSWindowDelegate {
     private let hotkey: HotkeyMonitor
     private let onApply: (String) -> Void   // 确认后：持久化 triggerKey + 刷新菜单
+    private let titleText: String?          // 自定义窗口标题（nil = 听写默认）
+    private let headingText: String?        // 自定义大标题
+    private let descText: String?           // 自定义手势说明
 
-    init(hotkey: HotkeyMonitor, onApply: @escaping (String) -> Void) {
+    init(hotkey: HotkeyMonitor, windowTitle: String? = nil, heading: String? = nil,
+         desc: String? = nil, onApply: @escaping (String) -> Void) {
         self.hotkey = hotkey
+        self.titleText = windowTitle
+        self.headingText = heading
+        self.descText = desc
         self.onApply = onApply
     }
 
@@ -95,7 +102,7 @@ final class HotkeySetup: NSObject, NSWindowDelegate {
     private func build() {
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 230),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        w.title = L.t(zh: "丝语 · 开始/结束热键", en: "Dontype · Start/Stop Hotkey")
+        w.title = titleText ?? L.t(zh: "丝语 · 开始/结束热键", en: "Dontype · Start/Stop Hotkey")
         w.isReleasedWhenClosed = false
         w.level = .floating
         w.delegate = self
@@ -107,9 +114,9 @@ final class HotkeySetup: NSObject, NSWindowDelegate {
         root.edgeInsets = NSEdgeInsets(top: 20, left: 24, bottom: 20, right: 24)
         root.translatesAutoresizingMaskIntoConstraints = false
 
-        let title = NSTextField(labelWithString: L.t(zh: "选择触发键", en: "Choose a trigger key"))
+        let title = NSTextField(labelWithString: headingText ?? L.t(zh: "选择触发键", en: "Choose a trigger key"))
         title.font = .boldSystemFont(ofSize: 15)
-        let desc = NSTextField(labelWithString:
+        let desc = NSTextField(labelWithString: descText ??
             L.t(zh: "在下面键盘上点一个键选它 · 手势固定：双击开始说话 / 单击结束粘贴 / Esc 结束不粘贴。",
                 en: "Click a key below to pick it · gesture: double-tap to start / tap to stop & paste / Esc to stop without pasting."))
         desc.font = .systemFont(ofSize: 12)

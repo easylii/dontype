@@ -46,6 +46,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.rebuildMenu()
     }
 
+    /// 语音助手热键设置：同款「键盘选键 → 双击测试 → 确认」窗，手势说明换成助手的。
+    private lazy var assistantHotkeySetup = HotkeySetup(
+        hotkey: assistantHotkey,
+        windowTitle: L.t(zh: "丝语 · 语音助手热键", en: "Dontype · Voice Assistant Hotkey"),
+        heading: L.t(zh: "选择语音助手触发键", en: "Choose the voice-assistant key"),
+        desc: L.t(zh: "在下面键盘上点一个键选它 · 手势：双击激活 / 单击 说·停发送·继续 / Esc 关闭。",
+                  en: "Click a key below to pick it · gesture: double-tap to start / single-tap to talk·send / Esc to close.")
+    ) { [weak self] id in
+        guard let self else { return }
+        self.config.assistantKey = id
+        self.persist(["assistantKey": id])
+        self.assistantHotkey.setTrigger(Trigger.from(id))
+        self.rebuildMenu()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         L.set(config.uiLang)
         Whisper.configure(modelID: config.whisperModel, language: config.recognitionLang)
@@ -89,13 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.persist(["cleanupBackend": id])
             self.rebuildMenu()   // 菜单里「AI 整理」那行同步显示新后端
         }
-        Onboarding.shared.onChangeAssistantKey = { [weak self] id in
-            guard let self else { return }
-            self.config.assistantKey = id
-            self.persist(["assistantKey": id])
-            self.assistantHotkey.setTrigger(Trigger.from(id))   // 立刻换键
-            self.rebuildMenu()
-        }
+        Onboarding.shared.onConfigureAssistant = { [weak self] in self?.assistantHotkeySetup.show() }
         Onboarding.shared.onChangeRemoteEnabled = { [weak self] on in
             guard let self else { return }
             self.config.remoteEnabled = on
@@ -541,8 +550,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        menu.addItem(modeItem(L.t(zh: "剪贴历史", en: "Clipboard history"),
-                              symbol: "doc.on.clipboard", build: { m in self.buildRecallItems().forEach { m.addItem($0) } }))
+        // 剪贴历史：顶层平铺，点一下复制回剪贴板（不放二级菜单）
+        buildRecallItems().forEach { menu.addItem($0) }
 
         menu.addItem(.separator())
 

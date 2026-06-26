@@ -48,7 +48,7 @@ final class Onboarding: NSObject {
     private var modelDetail: NSTextField?,  modelButton: NSButton?,  modelBar: NSProgressIndicator?
     private var backendDetail: NSTextField?, backendButton: NSButton?
     private var cleanupBackendPopup: NSPopUpButton?
-    private var assistantKeyPopup: NSPopUpButton?
+    private var assistantDetail: NSTextField?
     private var hotkeyDetail: NSTextField?
     private var readDetail: NSTextField?,   readButton: NSButton?
     private var remoteDetail: NSTextField?, remoteSwitch: NSButton?
@@ -61,7 +61,7 @@ final class Onboarding: NSObject {
     var onChangeUILang: ((String) -> Void)?
     var onChangeRecogLang: ((String) -> Void)?
     var onChangeCleanupBackend: ((String) -> Void)?
-    var onChangeAssistantKey: ((String) -> Void)?
+    var onConfigureAssistant: (() -> Void)?
     var onChangeRemoteEnabled: ((Bool) -> Void)?
     var onConfigureRemote: (() -> Void)?
 
@@ -103,7 +103,7 @@ final class Onboarding: NSObject {
     private func clearRefs() {
         micDetail = nil; micButton = nil; speechDetail = nil; speechButton = nil
         axDetail = nil; axButton = nil; modelDetail = nil; modelButton = nil; modelBar = nil
-        backendDetail = nil; backendButton = nil; cleanupBackendPopup = nil; assistantKeyPopup = nil; hotkeyDetail = nil
+        backendDetail = nil; backendButton = nil; cleanupBackendPopup = nil; assistantDetail = nil; hotkeyDetail = nil
         readDetail = nil; readButton = nil; consentStatus = nil
         remoteDetail = nil; remoteSwitch = nil
     }
@@ -277,7 +277,11 @@ final class Onboarding: NSObject {
                      button: L.t(zh: "设置", en: "Configure"), action: #selector(readButtonTapped))
         readDetail = rd.detail; readButton = rd.button
         root.addArrangedSubview(rd.view)
-        root.addArrangedSubview(assistantKeyRow())
+
+        let asst = row(title: L.t(zh: "⑩ 语音助手键（双击说话）", en: "⑩ Voice assistant key"),
+                       button: L.t(zh: "设置", en: "Configure"), action: #selector(configureAssistant))
+        assistantDetail = asst.detail
+        root.addArrangedSubview(asst.view)
 
         root.addArrangedSubview(uiLangRow())
 
@@ -712,29 +716,7 @@ final class Onboarding: NSObject {
         refresh()   // 立刻刷新「当前后端」那行的名字/可用性
     }
 
-    /// 语音助手触发键：双击它 = 对讲机（开始说 / 单击停止发送 / Esc 关闭）。
-    private func assistantKeyRow() -> NSView {
-        let titleLabel = NSTextField(labelWithString: L.t(zh: "语音助手键（双击说话）", en: "Voice assistant key (double-tap)"))
-        titleLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        titleLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
-        popup.target = self; popup.action = #selector(assistantKeyChanged(_:))
-        for t in Trigger.all { popup.addItem(withTitle: t.label) }
-        if let i = Trigger.all.firstIndex(where: { $0.id == config.assistantKey }) { popup.selectItem(at: i) }
-        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        assistantKeyPopup = popup
-
-        let rowStack = NSStackView(views: [titleLabel, popup])
-        rowStack.orientation = .horizontal; rowStack.alignment = .centerY; rowStack.spacing = 12
-        rowStack.translatesAutoresizingMaskIntoConstraints = false
-        rowStack.widthAnchor.constraint(equalToConstant: 424).isActive = true
-        return rowStack
-    }
-
-    @objc private func assistantKeyChanged(_ sender: NSPopUpButton) {
-        onChangeAssistantKey?(Trigger.all[max(0, sender.indexOfSelectedItem)].id)
-    }
+    @objc private func configureAssistant() { onConfigureAssistant?() }
 
     /// 遥控器 / 手柄：「开 / 关」+ 连接状态 +「设置」打开演示 / 按键映射窗口。
     private func remoteRow() -> NSView {
@@ -876,6 +858,12 @@ final class Onboarding: NSObject {
             hotkeyDetail.stringValue = "• " + L.t(zh: "双击 \(tl) 开始 · 单击结束 · Esc 取消",
                                                   en: "double-tap \(tl) to start · tap to stop · Esc cancel")
             hotkeyDetail.textColor = .secondaryLabelColor
+        }
+        if let assistantDetail {
+            let al = Trigger.from(config.assistantKey).label
+            assistantDetail.stringValue = "• " + L.t(zh: "双击 \(al) 激活 · 单击 说/停发送 · Esc 关闭",
+                                                      en: "double-tap \(al) to start · tap to talk/send · Esc to close")
+            assistantDetail.textColor = .secondaryLabelColor
         }
         if remoteDetail != nil { updateRemoteStatus() }
         if let readDetail, let readButton {

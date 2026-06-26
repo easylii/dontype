@@ -19,7 +19,7 @@ final class KeyboardRowView: NSView {
         Key(label: "fn", sub: "fn", triggerID: "fn", weight: 1),
         Key(label: "⌃", sub: "control", triggerID: "control", weight: 1),
         Key(label: "⌥", sub: "option", triggerID: "option", weight: 1),
-        Key(label: "⌘", sub: "command", triggerID: nil, weight: 1.2),
+        Key(label: "⌘", sub: "左 command", triggerID: "leftCommand", weight: 1.2),
         Key(label: "", sub: "space", triggerID: nil, weight: 3.4),
         Key(label: "⌘", sub: "右 command", triggerID: "rightCommand", weight: 1.2),
         Key(label: "⌥", sub: "右 option", triggerID: "rightOption", weight: 1),
