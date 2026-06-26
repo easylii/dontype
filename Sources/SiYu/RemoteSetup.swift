@@ -43,7 +43,6 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         if window == nil { build() }
         remote.start()
         remote.suppressed = true                       // 配置期间：按键只点亮、不执行动作
-        remote.logAll = true                           // 全记日志（万一不走 251，可从日志看真 id）
         remote.onState = { [weak self] pressed in self?.applyPressed(pressed) }
         remote.onRawReport = { [weak self] id, bytes in self?.applyRaw(id, bytes) }
         syncPopups()                                   // 下拉按当前映射回填
@@ -367,9 +366,9 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         return t
     }
 
-    /// 原始报文回调：短报文（≤8 字节，排除触摸长流）→ 读出 id+hex、点亮 bit 格子。
+    /// 原始报文回调：只认按键报文 id=251（忽略 id=1 那种每秒心跳，否则格子会一直乱亮）。
     private func applyRaw(_ id: Int, _ bytes: [UInt8]) {
-        guard bytes.count <= 8 else { return }
+        guard id == RemoteHID.reportID, bytes.count <= 8 else { return }
         let hex = bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
         rawReadout?.stringValue = L.t(zh: "最近报文 id=\(id) · \(hex)", en: "Last report id=\(id) · \(hex)")
         let b0 = bytes.count > 1 ? Int(bytes[1]) : 0
