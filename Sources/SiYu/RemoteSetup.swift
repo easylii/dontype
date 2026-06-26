@@ -33,6 +33,7 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
     private var rowViews: [String: NSView] = [:]         // 键码 → 行容器（按下时高亮）
     private var popups: [String: NSPopUpButton] = [:]    // 键码 → 动作下拉
     private var remoteMap: [String: String] = [:]        // 当前映射（code → action），改了即时持久化
+    private var codeReadout: NSTextField?                // 实时读数：原始报文 hex + 检测到的位码 dX.Y
 
     func show() {
         remoteMap = Config.load().remoteMap            // 进来先拿当前映射
@@ -283,21 +284,52 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         scroll.hasVerticalScroller = true; scroll.drawsBackground = false; scroll.borderType = .noBorder
         scroll.documentView = rows
         host.addSubview(scroll)
+
+        // 实时读数条：原始报文 hex + 检测到的位码（按键时把「数字」读出来，便于辨识/校准未知键）
+        let readout = NSTextField(labelWithString: L.t(zh: "等待按键…", en: "Waiting for a key…"))
+        readout.font = .monospacedSystemFont(ofSize: 11.5, weight: .medium)
+        readout.textColor = .secondaryLabelColor
+        readout.lineBreakMode = .byTruncatingTail
+        readout.translatesAutoresizingMaskIntoConstraints = false
+        codeReadout = readout
+        host.addSubview(readout)
+
         NSLayoutConstraint.activate([
             rows.topAnchor.constraint(equalTo: scroll.contentView.topAnchor, constant: 2),
             rows.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor, constant: 2),
             rows.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor, constant: -4),
 
+            readout.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 6),
+            readout.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -6),
+            readout.bottomAnchor.constraint(equalTo: host.bottomAnchor, constant: -6),
+
             web.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 6),
             web.topAnchor.constraint(equalTo: host.topAnchor, constant: 6),
-            web.bottomAnchor.constraint(equalTo: host.bottomAnchor, constant: -6),
+            web.bottomAnchor.constraint(equalTo: readout.topAnchor, constant: -8),
             web.widthAnchor.constraint(equalToConstant: 150),
             scroll.leadingAnchor.constraint(equalTo: web.trailingAnchor, constant: 10),
             scroll.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -6),
             scroll.topAnchor.constraint(equalTo: host.topAnchor, constant: 6),
-            scroll.bottomAnchor.constraint(equalTo: host.bottomAnchor, constant: -6),
+            scroll.bottomAnchor.constraint(equalTo: readout.topAnchor, constant: -8),
         ])
         return host
+    }
+
+    /// 把按下的位码集合 → 「报文 FB xx xx · 检测到 dX.Y → 键名」读数（无按键 = 等待）。
+    private func readoutText(_ pressed: Set<String>) -> String {
+        guard !pressed.isEmpty else { return L.t(zh: "等待按键…", en: "Waiting for a key…") }
+        var b0: UInt8 = 0, b1: UInt8 = 0
+        for c in pressed {
+            let p = c.dropFirst().split(separator: ".")          // "d0.5" → ["0","5"]
+            guard p.count == 2, let byte = Int(p[0]), let bit = Int(p[1]) else { continue }
+            if byte == 0 { b0 |= (1 << bit) } else if byte == 1 { b1 |= (1 << bit) }
+        }
+        let hex = String(format: "FB %02X %02X", b0, b1)
+        let codes = pressed.sorted().map { c -> String in
+            if let b = RemoteHID.buttons.first(where: { $0.code == c }) { return "\(c) → \(L.t(zh: b.zh, en: b.en))" }
+            return "\(c) " + L.t(zh: "（未识别）", en: "(unknown)")
+        }.joined(separator: "、")
+        return L.t(zh: "报文 \(hex)　·　检测到 \(codes)", en: "Report \(hex)  ·  \(codes)")
     }
 
     /// 一行：键名 + 动作下拉。容器存进 rowViews 以便按下时高亮。
@@ -351,7 +383,7 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         persist(["remoteMap": remoteMap])   // AppDelegate 落盘并重载内存 config，动作即时生效
     }
 
-    /// 实时感知：按住的键 → 左图点亮 + 对应行高亮（suppressed 期间不执行动作）。
+    /// 实时感知：按住的键 → 左图点亮 + 对应行高亮 + 读出报文/位码（suppressed 期间不执行动作）。
     private func applyPressed(_ pressed: Set<String>) {
         for b in RemoteHID.buttons {
             let on = pressed.contains(b.code)
@@ -361,6 +393,7 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
                 mapWeb?.evaluateJavaScript("hl('\(id)',\(on))", completionHandler: nil)
             }
         }
+        if !pressed.isEmpty { codeReadout?.stringValue = readoutText(pressed) }   // 抬起后留住上次，便于看清
     }
 
     /// 4 步循环动画（双语）：按 TV 说话 → 再按出文字 → Esc/返回 取消 → 触摸板移光标。真实 Siri Remote。
