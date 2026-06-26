@@ -530,60 +530,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func rebuildMenu() {
         let menu = NSMenu()
 
-        // ─── 语音输入（说话 → 文字）───
-        menu.addItem(sectionHeader(L.t(zh: "语音输入 · 说话 → 文字", en: "Voice input · speech → text")))
-        menu.addItem(hintItem(L.t(zh: "双击\(hotkey.trigger.label) 开始 · 单击结束 · Esc 不粘贴",
-                                  en: "Double-tap \(hotkey.trigger.label) to start · tap to stop · Esc = no paste")))
-
-        // 剪贴历史（最多 5 条，转写 + 手动复制）：点一下复制回剪贴板
-        buildRecallItems().forEach { menu.addItem($0) }
-
-        // 默认 = 自动判断；勾上 = 停用（永远不整理）
-        let cleanupItem = NSMenuItem(title: L.t(zh: "停用 AI 整理（默认：自动判断）",
-                                                en: "Disable AI cleanup (default: auto)"),
-                                     action: #selector(toggleCleanup), keyEquivalent: "")
-        cleanupItem.target = self
-        cleanupItem.state = config.cleanup ? .off : .on   // cleanup=true → 自动→ 不勾；false → 停用 → 勾
-        menu.addItem(cleanupItem)
-
-        let pasteItem = NSMenuItem(title: L.t(zh: "自动粘贴到光标", en: "Auto-paste at cursor"),
-                                   action: #selector(toggleAutoPaste), keyEquivalent: "")
-        pasteItem.target = self
-        pasteItem.state = config.autoPaste ? .on : .off
-        menu.addItem(pasteItem)
-
-        // 遥控器用法说明（设置/演示在「设置向导 ▸ ⑧ 遥控器 ▸ 说明」里）
-        menu.addItem(hintItem(L.t(zh: "遥控器：TV 说话 · 再按完成 · ‹/Esc 取消 · ↑↓ 列表上下 · ←→ Tab 切控件/按钮",
-                                  en: "Remote: TV to talk · again to finish · ‹/Esc cancels · ↑↓ move lists · ←→ Tab between controls")))
-        menu.addItem(hintItem(L.t(zh: "　　　纯文本上 双击OK 选中这段 → 按 TV 朗读（朗读中按 TV 停）",
-                                  en: "       On plain text: double-tap OK to select it → TV reads it aloud (TV again stops)")))
-
-        menu.addItem(buildMicMenu())
+        // 三个「模式」各自一个二级子菜单：图标 + 名字 ▸，提示/开关都收进去，风格统一
+        menu.addItem(modeItem(L.t(zh: "听写 · 说话 → 文字", en: "Dictation · speech → text"),
+                              symbol: "waveform", build: buildDictationSubmenu))
+        menu.addItem(modeItem(L.t(zh: "朗读 · 文字 → 说话", en: "Read aloud · text → speech"),
+                              symbol: "speaker.wave.2.fill", build: buildReadSubmenu))
+        menu.addItem(modeItem(voiceLoop.active ? L.t(zh: "语音助手 · 对话中", en: "Voice assistant · active")
+                                               : L.t(zh: "语音助手 · 在线对话", en: "Voice assistant · online"),
+                              image: AssistantIcon.image(), build: buildAssistantSubmenu))
 
         menu.addItem(.separator())
 
-        // ─── 朗读（文字 → 说话）───
-        menu.addItem(sectionHeader(L.t(zh: "朗读 · 文字 → 说话", en: "Read aloud · text → speech")))
-        menu.addItem(hintItem(L.t(zh: "选中后双击\(Trigger.from(config.readKey).label) 朗读 · 单击暂停/继续 · Esc 停",
-                                  en: "Select, double-tap \(Trigger.from(config.readKey).label) to read · tap to pause · Esc to stop")))
+        menu.addItem(modeItem(L.t(zh: "剪贴历史", en: "Clipboard history"),
+                              symbol: "doc.on.clipboard", build: { m in self.buildRecallItems().forEach { m.addItem($0) } }))
 
         menu.addItem(.separator())
 
-        // 在线语音助手（Claude Code + 连续语音，plan 只读）—— 单独 opt-in，走云端，与本地内核分开
-        let assistant = NSMenuItem(title: voiceLoop.active
-                                   ? L.t(zh: "停止语音助手", en: "Stop voice assistant")
-                                   : L.t(zh: "语音助手（连续对话 · 在线 · 只读）", en: "Voice assistant (online · read-only)"),
-                                   action: #selector(openAssistant), keyEquivalent: "")
-        assistant.image = AssistantIcon.image()   // Tabler message-chatbot 图标
-        assistant.target = self
-        menu.addItem(assistant)
-        menu.addItem(hintItem(L.t(zh: "　双击 \(Trigger.from(config.assistantKey).label) 激活 · 之后单击 说/停发送/继续 · Esc 关闭",
-                                  en: "  double-tap \(Trigger.from(config.assistantKey).label) to start · then single-tap to talk/send/continue · Esc to close")))
-        menu.addItem(.separator())
-
-        // ─── 通用 ───（界面语言、模型、热键、朗读等都在「设置向导」里）
-        let setup = NSMenuItem(title: L.t(zh: "设置向导…（界面语言 / 模型 / 热键 / 朗读…）",
-                                          en: "Setup Wizard… (language / model / hotkeys / read…)"),
+        let setup = NSMenuItem(title: L.t(zh: "设置向导…", en: "Setup Wizard…"),
                                action: #selector(openOnboarding), keyEquivalent: "")
         setup.target = self
         menu.addItem(setup)
@@ -593,6 +556,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(quit)
 
         statusItem.menu = menu
+    }
+
+    /// 顶层「模式」项：SF Symbol 图标 + 名字，挂一个用 build 填充的二级子菜单。
+    private func modeItem(_ title: String, symbol: String, build: (NSMenu) -> Void) -> NSMenuItem {
+        modeItem(title, image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil), build: build)
+    }
+    private func modeItem(_ title: String, image: NSImage?, build: (NSMenu) -> Void) -> NSMenuItem {
+        let it = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        it.image = image
+        let sub = NSMenu(); build(sub); it.submenu = sub
+        return it
+    }
+
+    /// 听写子菜单：用法提示 + AI 整理/自动粘贴开关 + 麦克风 + 遥控器提示。
+    private func buildDictationSubmenu(_ m: NSMenu) {
+        m.addItem(hintItem(L.t(zh: "双击 \(hotkey.trigger.label) 开始 · 单击结束 · Esc 不粘贴",
+                               en: "Double-tap \(hotkey.trigger.label) to start · tap to stop · Esc = no paste")))
+        m.addItem(.separator())
+        let cleanup = NSMenuItem(title: L.t(zh: "停用 AI 整理（默认：自动）", en: "Disable AI cleanup (default: auto)"),
+                                 action: #selector(toggleCleanup), keyEquivalent: "")
+        cleanup.target = self; cleanup.state = config.cleanup ? .off : .on
+        m.addItem(cleanup)
+        let paste = NSMenuItem(title: L.t(zh: "自动粘贴到光标", en: "Auto-paste at cursor"),
+                               action: #selector(toggleAutoPaste), keyEquivalent: "")
+        paste.target = self; paste.state = config.autoPaste ? .on : .off
+        m.addItem(paste)
+        m.addItem(buildMicMenu())
+        m.addItem(.separator())
+        m.addItem(hintItem(L.t(zh: "遥控器：TV 说话 · 再按完成 · ‹/Esc 取消 · ↑↓ 列表 · ←→ Tab 切控件",
+                               en: "Remote: TV talks · again finishes · ‹/Esc cancels · ↑↓ lists · ←→ Tab")))
+    }
+
+    /// 朗读子菜单：用法提示。
+    private func buildReadSubmenu(_ m: NSMenu) {
+        m.addItem(hintItem(L.t(zh: "选中后双击 \(Trigger.from(config.readKey).label) 朗读 · 单击暂停/继续 · Esc 停",
+                               en: "Select, double-tap \(Trigger.from(config.readKey).label) to read · tap to pause · Esc to stop")))
+        m.addItem(hintItem(L.t(zh: "纯文本上双击 OK 选中这段 → 按 TV 朗读（再按停）",
+                               en: "On plain text: double-tap OK to select → TV reads it (TV again stops)")))
+    }
+
+    /// 语音助手子菜单：启停动作 + 用法提示 + 在线说明。
+    private func buildAssistantSubmenu(_ m: NSMenu) {
+        let toggle = NSMenuItem(title: voiceLoop.active ? L.t(zh: "停止语音助手", en: "Stop voice assistant")
+                                                        : L.t(zh: "启动语音助手", en: "Start voice assistant"),
+                                action: #selector(openAssistant), keyEquivalent: "")
+        toggle.target = self
+        m.addItem(toggle)
+        m.addItem(.separator())
+        m.addItem(hintItem(L.t(zh: "双击 \(Trigger.from(config.assistantKey).label) 激活 · 单击 说/停发送/继续 · Esc 关闭",
+                               en: "Double-tap \(Trigger.from(config.assistantKey).label) to start · tap to talk/send · Esc to close")))
+        m.addItem(hintItem(L.t(zh: "在线 · 走 Claude Code · plan 只读", en: "Online · via Claude Code · plan read-only")))
     }
 
     /// 小节标题：禁用、小号半粗次要色，读起来像分区标签而不是不可用的选项
