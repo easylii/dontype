@@ -3,8 +3,9 @@ import WebKit
 import Foundation
 
 /// Apple TV 遥控器页（连接感知）：
-/// 没连 → 显示「未连接」+ 配对引导（唤醒 / 打开蓝牙）；连了 → 显示状态 + 用法 SVG 动画 + 输入监视授权 + 触摸板鼠标开关。
-/// 连接状态用 system_profiler 异步查（不需要任何权限）。键位是固定的，本页不做配置、只演示。
+/// 没连 → 显示「未连接」+ 配对引导（唤醒 / 打开蓝牙）；连了 → 授权 + 两个标签页：
+///   「用法演示」= 4 步循环 SVG 动画；「按键映射」= 静态遥控器图 + 实时感知（按物理键点亮）+ 每键分配动作。
+/// 连接状态用 system_profiler 异步查（不需要任何权限）。映射期间 remote.suppressed=true，只点亮不执行。
 final class RemoteSetup: NSObject, NSWindowDelegate {
     private let remote: RemoteHID
     private let touchpad: MultitouchRemote
@@ -27,9 +28,19 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
     private var accessTimer: Timer?
     private var connected = false
 
+    // 映射页：实时感知 + 每键分配动作
+    private var mapWeb: WKWebView?                       // 静态遥控器 SVG（按物理键点亮）
+    private var rowViews: [String: NSView] = [:]         // 键码 → 行容器（按下时高亮）
+    private var popups: [String: NSPopUpButton] = [:]    // 键码 → 动作下拉
+    private var remoteMap: [String: String] = [:]        // 当前映射（code → action），改了即时持久化
+
     func show() {
+        remoteMap = Config.load().remoteMap            // 进来先拿当前映射
         if window == nil { build() }
         remote.start()
+        remote.suppressed = true                       // 配置期间：按键只点亮、不执行动作
+        remote.onState = { [weak self] pressed in self?.applyPressed(pressed) }
+        syncPopups()                                   // 下拉按当前映射回填
         startTimers()
         NSApp.activate(ignoringOtherApps: true)
         window?.center(); window?.makeKeyAndOrderFront(nil)
@@ -38,6 +49,9 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         connTimer?.invalidate(); connTimer = nil
         accessTimer?.invalidate(); accessTimer = nil
+        remote.onState = nil                           // 放开感知，恢复正常执行
+        remote.suppressed = false
+        rowViews.values.forEach { $0.layer?.backgroundColor = NSColor.clear.cgColor }
     }
 
     // MARK: 状态轮询
@@ -148,7 +162,7 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         let footer = NSStackView(views: [NSView(), doneBtn])
         footer.orientation = .horizontal
         footer.translatesAutoresizingMaskIntoConstraints = false
-        footer.widthAnchor.constraint(equalToConstant: 496).isActive = true
+        footer.widthAnchor.constraint(equalToConstant: 520).isActive = true
         root.addArrangedSubview(footer)
 
         let content = NSView()
@@ -160,7 +174,7 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
             root.bottomAnchor.constraint(equalTo: content.bottomAnchor),
         ])
         w.contentView = content
-        w.setContentSize(NSSize(width: 540, height: 398))
+        w.setContentSize(NSSize(width: 564, height: 540))
         window = w
     }
 
@@ -193,12 +207,12 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         return box
     }
 
-    /// 已连接：授权 + 用法动画 + 触摸板鼠标开关。
+    /// 已连接：授权行 + 标签页（用法演示 / 按键映射）。
     private func buildUsageBox() -> NSStackView {
         let box = NSStackView()
         box.orientation = .vertical; box.alignment = .leading; box.spacing = 12
         box.translatesAutoresizingMaskIntoConstraints = false
-        box.widthAnchor.constraint(equalToConstant: 496).isActive = true
+        box.widthAnchor.constraint(equalToConstant: 520).isActive = true
 
         accessLabel = NSTextField(labelWithString: "…")
         accessLabel.font = .systemFont(ofSize: 12)
@@ -208,16 +222,145 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         accessRow.orientation = .horizontal; accessRow.spacing = 10; accessRow.alignment = .centerY
         box.addArrangedSubview(accessRow)
 
-        let web = WKWebView(frame: .zero)
-        web.wantsLayer = true; web.layer?.cornerRadius = 12; web.layer?.masksToBounds = true
-        web.translatesAutoresizingMaskIntoConstraints = false
-        web.widthAnchor.constraint(equalToConstant: 496).isActive = true
-        web.heightAnchor.constraint(equalToConstant: 240).isActive = true
-        web.loadHTMLString(RemoteSetup.demoHTML(), baseURL: nil)
-        box.addArrangedSubview(web)
+        let tabs = NSTabView()
+        tabs.translatesAutoresizingMaskIntoConstraints = false
+        tabs.widthAnchor.constraint(equalToConstant: 520).isActive = true
+        tabs.heightAnchor.constraint(equalToConstant: 380).isActive = true
 
+        // 用法演示（保留原来的 4 步循环动画）
+        let demo = NSTabViewItem(identifier: "demo")
+        demo.label = L.t(zh: "用法演示", en: "Demo")
+        let demoWeb = WKWebView(frame: .zero)
+        demoWeb.wantsLayer = true; demoWeb.layer?.cornerRadius = 10; demoWeb.layer?.masksToBounds = true
+        demoWeb.loadHTMLString(RemoteSetup.demoHTML(), baseURL: nil)
+        let demoHost = NSView()
+        demoWeb.translatesAutoresizingMaskIntoConstraints = false
+        demoHost.addSubview(demoWeb)
+        NSLayoutConstraint.activate([
+            demoWeb.leadingAnchor.constraint(equalTo: demoHost.leadingAnchor, constant: 4),
+            demoWeb.trailingAnchor.constraint(equalTo: demoHost.trailingAnchor, constant: -4),
+            demoWeb.topAnchor.constraint(equalTo: demoHost.topAnchor, constant: 4),
+            demoWeb.heightAnchor.constraint(equalToConstant: 250),
+        ])
+        demo.view = demoHost
+        tabs.addTabViewItem(demo)
+
+        // 按键映射（实时感知 + 每键分配）
+        let map = NSTabViewItem(identifier: "map")
+        map.label = L.t(zh: "按键映射", en: "Mapping")
+        map.view = buildMapBox()
+        tabs.addTabViewItem(map)
+
+        box.addArrangedSubview(tabs)
         usageBox = box
         return box
+    }
+
+    /// 映射页：左 = 静态遥控器 SVG（按物理键点亮）；右 = 每键一行（名字 + 动作下拉，可滚动）。
+    private func buildMapBox() -> NSView {
+        let host = NSView()
+
+        let web = WKWebView(frame: .zero)
+        web.wantsLayer = true; web.layer?.cornerRadius = 10; web.layer?.masksToBounds = true
+        web.translatesAutoresizingMaskIntoConstraints = false
+        web.loadHTMLString(RemoteSetup.mapHTML(), baseURL: nil)
+        mapWeb = web
+        host.addSubview(web)
+
+        let rows = NSStackView()
+        rows.orientation = .vertical; rows.alignment = .leading; rows.spacing = 5
+        rows.translatesAutoresizingMaskIntoConstraints = false
+        let hint = NSTextField(wrappingLabelWithString: L.t(
+            zh: "按遥控器上的某个键 → 它在左图和这一行都会亮 → 在它的下拉里选动作（即时生效）。",
+            en: "Press a key on the remote → it lights up on the left and its row → pick its action (applies live)."))
+        hint.font = .systemFont(ofSize: 11); hint.textColor = .secondaryLabelColor
+        hint.preferredMaxLayoutWidth = 322
+        rows.addArrangedSubview(hint)
+        for b in RemoteHID.buttons { rows.addArrangedSubview(makeRow(b)) }
+
+        let scroll = NSScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.hasVerticalScroller = true; scroll.drawsBackground = false; scroll.borderType = .noBorder
+        scroll.documentView = rows
+        host.addSubview(scroll)
+        NSLayoutConstraint.activate([
+            rows.topAnchor.constraint(equalTo: scroll.contentView.topAnchor, constant: 2),
+            rows.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor, constant: 2),
+            rows.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor, constant: -4),
+
+            web.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 6),
+            web.topAnchor.constraint(equalTo: host.topAnchor, constant: 6),
+            web.bottomAnchor.constraint(equalTo: host.bottomAnchor, constant: -6),
+            web.widthAnchor.constraint(equalToConstant: 150),
+            scroll.leadingAnchor.constraint(equalTo: web.trailingAnchor, constant: 10),
+            scroll.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -6),
+            scroll.topAnchor.constraint(equalTo: host.topAnchor, constant: 6),
+            scroll.bottomAnchor.constraint(equalTo: host.bottomAnchor, constant: -6),
+        ])
+        return host
+    }
+
+    /// 一行：键名 + 动作下拉。容器存进 rowViews 以便按下时高亮。
+    private func makeRow(_ b: RemoteHID.Btn) -> NSView {
+        let row = NSView()
+        row.wantsLayer = true; row.layer?.cornerRadius = 6
+        row.translatesAutoresizingMaskIntoConstraints = false
+        rowViews[b.code] = row
+
+        let name = NSTextField(labelWithString: L.t(zh: b.zh, en: b.en))
+        name.font = .systemFont(ofSize: 12)
+        name.lineBreakMode = .byTruncatingTail
+        name.translatesAutoresizingMaskIntoConstraints = false
+
+        let pop = NSPopUpButton(frame: .zero, pullsDown: false)
+        pop.translatesAutoresizingMaskIntoConstraints = false
+        for a in RemoteHID.actions { pop.addItem(withTitle: L.t(zh: a.zh, en: a.en)) }
+        pop.identifier = NSUserInterfaceItemIdentifier(b.code)
+        pop.target = self; pop.action = #selector(mapActionChanged(_:))
+        popups[b.code] = pop
+
+        row.addSubview(name); row.addSubview(pop)
+        NSLayoutConstraint.activate([
+            row.heightAnchor.constraint(equalToConstant: 30),
+            row.widthAnchor.constraint(equalToConstant: 322),
+            name.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 6),
+            name.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            name.widthAnchor.constraint(equalToConstant: 116),
+            pop.leadingAnchor.constraint(equalTo: name.trailingAnchor, constant: 6),
+            pop.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -6),
+            pop.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+        ])
+        return row
+    }
+
+    /// 下拉按当前映射回填（跟默认相同的就显示默认项）。
+    private func syncPopups() {
+        for b in RemoteHID.buttons {
+            let action = remoteMap[b.code] ?? b.def
+            if let idx = RemoteHID.actions.firstIndex(where: { $0.id == action }) {
+                popups[b.code]?.selectItem(at: idx)
+            }
+        }
+    }
+
+    @objc private func mapActionChanged(_ sender: NSPopUpButton) {
+        guard let code = sender.identifier?.rawValue else { return }
+        let action = RemoteHID.actions[max(0, sender.indexOfSelectedItem)].id
+        if action == RemoteHID.defaultAction(code) { remoteMap.removeValue(forKey: code) }  // 同默认就不存
+        else { remoteMap[code] = action }
+        persist(["remoteMap": remoteMap])   // AppDelegate 落盘并重载内存 config，动作即时生效
+    }
+
+    /// 实时感知：按住的键 → 左图点亮 + 对应行高亮（suppressed 期间不执行动作）。
+    private func applyPressed(_ pressed: Set<String>) {
+        for b in RemoteHID.buttons {
+            let on = pressed.contains(b.code)
+            rowViews[b.code]?.layer?.backgroundColor = on
+                ? NSColor.systemGreen.withAlphaComponent(0.30).cgColor : NSColor.clear.cgColor
+            if let id = RemoteHID.id(forCode: b.code) {
+                mapWeb?.evaluateJavaScript("hl('\(id)',\(on))", completionHandler: nil)
+            }
+        }
     }
 
     /// 4 步循环动画（双语）：按 TV 说话 → 再按出文字 → Esc/返回 取消 → 触摸板移光标。真实 Siri Remote。
@@ -327,6 +470,52 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         <div class="cap" id="p4"><div><span class="badge">🖱</span><b>\(p4t)</b></div><div class="sub">\(p4s)</div></div>
       </div>
     </div>
+    """
+    }
+
+    /// 映射页用的「静态遥控器」SVG：每个可分配键带 id（= RemoteHID 的 id），hl(id,on) 切换高亮。
+    /// 触摸板：中心=select，四向小点=up/down/left/right；back=menu、tv=tv、侧条=side、顶=power、下方两键=b3/b4、音量条=bar。
+    private static func mapHTML() -> String {
+        return """
+    <!doctype html><meta charset="utf-8">
+    <style>
+      html,body{ margin:0; height:100%; background:#171a21; }
+      svg{ display:block; width:100%; height:100%; }
+      .btn{ fill:#1b1b1d; } .ic{ stroke:#cfd2d7; fill:none; }
+      .dot{ fill:#5a5c60; } .on{ fill:#34d399 !important; }
+    </style>
+    <svg viewBox="34 0 62 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+      <defs><linearGradient id="bodyG" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#eceef1"/><stop offset="1" stop-color="#c4c8cf"/></linearGradient></defs>
+      <rect x="37.03" y="3.15" width="24.83" height="94.18" rx="5" fill="url(#bodyG)" stroke="#aab0b8" stroke-width="0.4"/>
+      <rect x="48.4" y="6.6" width="2.1" height="0.8" rx="0.4" fill="#3a3d42"/>
+      <circle id="power" class="btn" cx="56.64" cy="8.15" r="2.3"/>
+      <path d="M56.64 7.45 v0.85 M55.99 7.95 a0.82 0.82 0 1 0 1.3 0" class="ic" stroke-width="0.32" stroke-linecap="round"/>
+      <rect id="side" class="btn" x="61.0" y="26" width="1.7" height="10" rx="0.85"/>
+      <circle cx="49.44" cy="23" r="10.94" fill="#1b1b1d"/>
+      <circle id="select" class="btn" cx="49.44" cy="23" r="6.33" style="fill:#2a2a2c"/>
+      <circle id="up"    class="dot" cx="49.44" cy="14.6" r="1.2"/>
+      <circle id="down"  class="dot" cx="49.44" cy="31.4" r="1.2"/>
+      <circle id="left"  class="dot" cx="41"    cy="23"   r="1.2"/>
+      <circle id="right" class="dot" cx="57.9"  cy="23"   r="1.2"/>
+      <circle id="menu" class="btn" cx="44.28" cy="38.75" r="4.5"/>
+      <g transform="translate(39.48,33.95) scale(0.40)"><path d="M15 6l-6 6l6 6" class="ic" stroke-width="0.9" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g>
+      <circle id="tv" class="btn" cx="54.6" cy="38.75" r="4.5"/>
+      <g transform="translate(51.0,35.0) scale(0.30)" class="ic" stroke-width="0.9" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 19l18 0"/>
+        <path d="M5 7a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -8"/></g>
+      <circle id="b3" class="btn" cx="44.28" cy="48.9" r="4.5"/>
+      <g transform="translate(40.68,45.3) scale(0.30)"><path d="M15 5V19M21 5V19M3 7.20608V16.7939C3 17.7996 3 18.3024 3.19886 18.5352C3.37141 18.7373 3.63025 18.8445 3.89512 18.8236C4.20038 18.7996 4.55593 18.4441 5.26704 17.733L10.061 12.939C10.3897 12.6103 10.554 12.446 10.6156 12.2565C10.6697 12.0898 10.6697 11.9102 10.6156 11.7435C10.554 11.554 10.3897 11.3897 10.061 11.061L5.26704 6.26704C4.55593 5.55593 4.20038 5.20038 3.89512 5.17636C3.63025 5.15551 3.37141 5.26273 3.19886 5.46476C3 5.69759 3 6.20042 3 7.20608Z" class="ic" stroke-width="0.9" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g>
+      <rect id="bar" class="btn" x="50.1" y="44.4" width="9" height="18.65" rx="4.5"/>
+      <path d="M54.6 47.2 v2.6 M53.3 48.5 h2.6 M53.3 58 h2.6" class="ic" stroke-width="0.55" stroke-linecap="round"/>
+      <circle id="b4" class="btn" cx="44.28" cy="59.05" r="4.5"/>
+      <g transform="translate(40.92,55.69) scale(0.28)" class="ic" stroke-width="0.9" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 8a5 5 0 0 1 1.912 4.934m-1.377 2.602a5 5 0 0 1 -.535 .464"/>
+        <path d="M17.7 5a9 9 0 0 1 2.362 11.086m-1.676 2.299a9 9 0 0 1 -.686 .615"/>
+        <path d="M9.069 5.054l.431 -.554a.8 .8 0 0 1 1.5 .5v2m0 4v8a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l1.294 -1.664"/>
+        <path d="M3 3l18 18"/></g>
+    </svg>
+    <script>function hl(id,on){var e=document.getElementById(id);if(e)e.classList.toggle('on',on);}</script>
     """
     }
 

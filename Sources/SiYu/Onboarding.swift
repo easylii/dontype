@@ -736,7 +736,7 @@ final class Onboarding: NSObject {
         onChangeAssistantKey?(Trigger.all[max(0, sender.indexOfSelectedItem)].id)
     }
 
-    /// 遥控器 / 手柄：键位是固定预设的，这里只「开 / 关」+ 连接状态 +「说明」跳到演示。
+    /// 遥控器 / 手柄：「开 / 关」+ 连接状态 +「设置」打开演示 / 按键映射窗口。
     private func remoteRow() -> NSView {
         let titleLabel = NSTextField(labelWithString: L.t(zh: "⑧ 遥控器 / 手柄", en: "⑧ Remote / controller"))
         titleLabel.font = .systemFont(ofSize: 13, weight: .medium)
@@ -747,7 +747,7 @@ final class Onboarding: NSObject {
         sw.state = config.remoteEnabled ? .on : .off
         remoteSwitch = sw
 
-        let helpBtn = NSButton(title: L.t(zh: "说明", en: "Guide"),
+        let helpBtn = NSButton(title: L.t(zh: "设置…", en: "Set up…"),
                                target: self, action: #selector(configureRemote))
         helpBtn.bezelStyle = .rounded
 
