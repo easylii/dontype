@@ -31,8 +31,7 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
     // 映射页：实时感知 + 每键分配动作
     private var mapWeb: WKWebView?                       // 静态遥控器 SVG（按物理键点亮）
     private var rowViews: [String: NSView] = [:]         // 键码 → 行容器（按下时高亮）
-    private var popups: [String: NSPopUpButton] = [:]    // 键码 → 动作下拉
-    private var remoteMap: [String: String] = [:]        // 当前映射（code → action），改了即时持久化
+    private var remoteMap: [String: String] = [:]        // 当前映射（code → action），用来显示「有效动作」
     private var codeReadout: NSTextField?                // 解码读数：检测到的位码 dX.Y → 键名
     private var rawReadout: NSTextField?                 // 原始报文读数：最近报文 id=X · hex（看是否还走 251）
     private var b0Cells: [NSTextField] = []              // data byte 0 的 8 个 bit 格子（按 bit 序号索引）
@@ -45,7 +44,6 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         remote.suppressed = true                       // 配置期间：按键只点亮、不执行动作
         remote.onState = { [weak self] pressed in self?.applyPressed(pressed) }
         remote.onRawReport = { [weak self] id, bytes in self?.applyRaw(id, bytes) }
-        syncPopups()                                   // 下拉按当前映射回填
         startTimers()
         NSApp.activate(ignoringOtherApps: true)
         window?.center(); window?.makeKeyAndOrderFront(nil)
@@ -278,12 +276,12 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         rows.orientation = .vertical; rows.alignment = .leading; rows.spacing = 5
         rows.translatesAutoresizingMaskIntoConstraints = false
         let hint = NSTextField(wrappingLabelWithString: L.t(
-            zh: "按遥控器上的某个键 → 它在左图和这一行都会亮 → 在它的下拉里选动作（即时生效）。",
-            en: "Press a key on the remote → it lights up on the left and its row → pick its action (applies live)."))
+            zh: "键位已固定（无需设置）。按遥控器上的某个键 → 它在左图和对应行都会高亮。",
+            en: "Keys are fixed (no setup needed). Press a key → it highlights on the left and its row."))
         hint.font = .systemFont(ofSize: 11); hint.textColor = .secondaryLabelColor
         hint.preferredMaxLayoutWidth = 322
         rows.addArrangedSubview(hint)
-        for b in RemoteHID.buttons { rows.addArrangedSubview(makeRow(b)) }
+        for b in RemoteHID.buttons where b.def != "none" { rows.addArrangedSubview(makeRow(b)) }
 
         let scroll = NSScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
@@ -401,7 +399,7 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         return L.t(zh: "报文 \(hex)　·　检测到 \(codes)", en: "Report \(hex)  ·  \(codes)")
     }
 
-    /// 一行：键名 + 动作下拉。容器存进 rowViews 以便按下时高亮。
+    /// 一行：键名 → 固定动作（只读）。容器存进 rowViews 以便按下时高亮。
     private func makeRow(_ b: RemoteHID.Btn) -> NSView {
         let row = NSView()
         row.wantsLayer = true; row.layer?.cornerRadius = 6
@@ -413,43 +411,29 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         name.lineBreakMode = .byTruncatingTail
         name.translatesAutoresizingMaskIntoConstraints = false
 
-        let pop = NSPopUpButton(frame: .zero, pullsDown: false)
-        pop.translatesAutoresizingMaskIntoConstraints = false
-        for a in RemoteHID.actions { pop.addItem(withTitle: L.t(zh: a.zh, en: a.en)) }
-        pop.identifier = NSUserInterfaceItemIdentifier(b.code)
-        pop.target = self; pop.action = #selector(mapActionChanged(_:))
-        popups[b.code] = pop
+        let act = NSTextField(labelWithString: "→ " + actionName(remoteMap[b.code] ?? b.def))
+        act.font = .systemFont(ofSize: 12, weight: .medium); act.textColor = .secondaryLabelColor
+        act.lineBreakMode = .byTruncatingTail
+        act.translatesAutoresizingMaskIntoConstraints = false
 
-        row.addSubview(name); row.addSubview(pop)
+        row.addSubview(name); row.addSubview(act)
         NSLayoutConstraint.activate([
-            row.heightAnchor.constraint(equalToConstant: 30),
+            row.heightAnchor.constraint(equalToConstant: 28),
             row.widthAnchor.constraint(equalToConstant: 322),
-            name.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 6),
+            name.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 8),
             name.centerYAnchor.constraint(equalTo: row.centerYAnchor),
-            name.widthAnchor.constraint(equalToConstant: 116),
-            pop.leadingAnchor.constraint(equalTo: name.trailingAnchor, constant: 6),
-            pop.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -6),
-            pop.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+            name.widthAnchor.constraint(equalToConstant: 132),
+            act.leadingAnchor.constraint(equalTo: name.trailingAnchor, constant: 8),
+            act.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -8),
+            act.centerYAnchor.constraint(equalTo: row.centerYAnchor),
         ])
         return row
     }
 
-    /// 下拉按当前映射回填（跟默认相同的就显示默认项）。
-    private func syncPopups() {
-        for b in RemoteHID.buttons {
-            let action = remoteMap[b.code] ?? b.def
-            if let idx = RemoteHID.actions.firstIndex(where: { $0.id == action }) {
-                popups[b.code]?.selectItem(at: idx)
-            }
-        }
-    }
-
-    @objc private func mapActionChanged(_ sender: NSPopUpButton) {
-        guard let code = sender.identifier?.rawValue else { return }
-        let action = RemoteHID.actions[max(0, sender.indexOfSelectedItem)].id
-        if action == RemoteHID.defaultAction(code) { remoteMap.removeValue(forKey: code) }  // 同默认就不存
-        else { remoteMap[code] = action }
-        persist(["remoteMap": remoteMap])   // AppDelegate 落盘并重载内存 config，动作即时生效
+    /// 动作 id → 中/英显示名。
+    private func actionName(_ id: String) -> String {
+        if let a = RemoteHID.actions.first(where: { $0.id == id }) { return L.t(zh: a.zh, en: a.en) }
+        return id
     }
 
     /// 实时感知：按住的键 → 左图点亮 + 对应行高亮 + 读出报文/位码（suppressed 期间不执行动作）。
