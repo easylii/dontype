@@ -36,30 +36,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.config = Config.load()   // 同步内存 config（含 remoteMap），动作查表才不过时
     }
 
-    /// 热键设置（Typeless 式：选键 → 双击测试 → 确认才生效）。确认后持久化并刷新 UI。
-    private lazy var hotkeySetup = HotkeySetup(hotkey: hotkey) { [weak self] id in
-        guard let self else { return }
-        self.config.triggerKey = id
-        self.persist(["triggerKey": id])
-        self.statusItem.button?.toolTip = L.t(zh: "丝语 · 双击\(self.hotkey.trigger.label) 开始/结束",
-                                              en: "Dontype · double-tap \(self.hotkey.trigger.label) to start/stop")
-        self.rebuildMenu()
-    }
-
-    /// 语音助手热键设置：同款「键盘选键 → 双击测试 → 确认」窗，手势说明换成助手的。
-    private lazy var assistantHotkeySetup = HotkeySetup(
-        hotkey: assistantHotkey,
-        windowTitle: L.t(zh: "丝语 · 语音助手热键", en: "Dontype · Voice Assistant Hotkey"),
-        heading: L.t(zh: "选择语音助手触发键", en: "Choose the voice-assistant key"),
-        desc: L.t(zh: "在下面键盘上点一个键选它 · 手势：双击激活 / 单击 说·停发送·继续 / Esc 关闭。",
-                  en: "Click a key below to pick it · gesture: double-tap to start / single-tap to talk·send / Esc to close.")
-    ) { [weak self] id in
-        guard let self else { return }
-        self.config.assistantKey = id
-        self.persist(["assistantKey": id])
-        self.assistantHotkey.setTrigger(Trigger.from(id))
-        self.rebuildMenu()
-    }
+    /// 统一热键面板：一张键盘管三个功能（听写 / 朗读 / 语音助手），点选功能再点键换键，改了即时生效。
+    private lazy var hotkeyCenter = HotkeyCenter([
+        .init(name: L.t(zh: "听写", en: "Dictation"),
+              gesture: L.t(zh: "双击开始 · 单击结束 · Esc 不粘贴", en: "Double-tap to start · tap to stop · Esc = no paste"),
+              color: .systemBlue,
+              get: { [weak self] in self?.config.triggerKey ?? "control" },
+              apply: { [weak self] id in
+                  guard let self else { return }
+                  self.config.triggerKey = id; self.persist(["triggerKey": id]); self.hotkey.setTrigger(.from(id))
+                  self.statusItem.button?.toolTip = L.t(zh: "丝语 · 双击\(self.hotkey.trigger.label) 开始/结束",
+                                                        en: "Dontype · double-tap \(self.hotkey.trigger.label) to start/stop")
+                  self.rebuildMenu()
+              }),
+        .init(name: L.t(zh: "朗读", en: "Read aloud"),
+              gesture: L.t(zh: "选中后双击朗读 · 单击暂停/继续 · Esc 停", en: "Select, double-tap to read · tap to pause · Esc to stop"),
+              color: .systemGreen,
+              get: { [weak self] in self?.config.readKey ?? "rightCommand" },
+              apply: { [weak self] id in
+                  guard let self else { return }
+                  self.config.readKey = id; self.persist(["readKey": id]); self.readHotkey.setTrigger(.from(id)); self.rebuildMenu()
+              }),
+        .init(name: L.t(zh: "语音助手", en: "Assistant"),
+              gesture: L.t(zh: "双击激活 · 单击 说/停发送/继续 · Esc 关闭", en: "Double-tap to start · tap to talk/send · Esc to close"),
+              color: .systemOrange,
+              get: { [weak self] in self?.config.assistantKey ?? "leftCommand" },
+              apply: { [weak self] id in
+                  guard let self else { return }
+                  self.config.assistantKey = id; self.persist(["assistantKey": id]); self.assistantHotkey.setTrigger(.from(id)); self.rebuildMenu()
+              }),
+    ])
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         L.set(config.uiLang)
@@ -81,7 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // 模型就绪先拉起常驻识别服务；缺模型/缺权限时由设置向导逐项引导（期间走 Apple 识别顶着）
         if Whisper.available { Whisper.startServer() }
         Onboarding.shared.onModelReady = { Whisper.startServer() }
-        Onboarding.shared.onConfigureHotkey = { [weak self] in self?.hotkeySetup.show() }
+        Onboarding.shared.onConfigureHotkey = { [weak self] in self?.hotkeyCenter.show() }
         Onboarding.shared.onConfigureRead = { [weak self] in self?.readSetup.show() }
         Onboarding.shared.onConfigureRemote = { [weak self] in self?.remoteSetup.show() }
         Onboarding.shared.onChangeUILang = { [weak self] id in
@@ -104,7 +110,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.persist(["cleanupBackend": id])
             self.rebuildMenu()   // 菜单里「AI 整理」那行同步显示新后端
         }
-        Onboarding.shared.onConfigureAssistant = { [weak self] in self?.assistantHotkeySetup.show() }
         Onboarding.shared.onChangeRemoteEnabled = { [weak self] on in
             guard let self else { return }
             self.config.remoteEnabled = on

@@ -13,6 +13,10 @@ final class KeyboardRowView: NSView {
 
     var onSelect: ((Trigger) -> Void)?
     var selectedID: String = "" { didSet { needsDisplay = true } }
+    /// 当前选中功能的颜色（选中键满色显示）。
+    var selectedColor: NSColor = .controlAccentColor { didSet { needsDisplay = true } }
+    /// 键 → (功能名, 颜色)：被某功能占用的键，浅色底 + 小字显示功能名。
+    var badges: [String: (text: String, color: NSColor)] = [:] { didSet { needsDisplay = true } }
     private var flashingID: String?
 
     private var keys: [Key] = [
@@ -47,9 +51,11 @@ final class KeyboardRowView: NSView {
             let path = NSBezierPath(roundedRect: key.rect, xRadius: 6, yRadius: 6)
             let isSel = key.triggerID != nil && key.triggerID == selectedID
             let isFlash = key.triggerID != nil && key.triggerID == flashingID
+            let badge = key.triggerID.flatMap { badges[$0] }
             let fill: NSColor
             if isFlash { fill = NSColor.systemGreen }
-            else if isSel { fill = NSColor.controlAccentColor }
+            else if isSel { fill = selectedColor }                          // 选中功能的键：满色
+            else if let badge { fill = badge.color.withAlphaComponent(0.20) } // 被别的功能占用：浅色底
             else if key.triggerID == nil { fill = NSColor.windowBackgroundColor }
             else { fill = NSColor.controlBackgroundColor }
             fill.setFill(); path.fill()
@@ -60,11 +66,15 @@ final class KeyboardRowView: NSView {
                 drawCentered(key.label, in: key.rect,
                              font: .systemFont(ofSize: 15, weight: .medium),
                              color: lit ? .white : (key.triggerID == nil ? .tertiaryLabelColor : .labelColor),
-                             dy: key.sub.isEmpty ? 0 : -6)
+                             dy: -7)
             }
-            if !key.sub.isEmpty {
-                drawCentered(key.sub, in: key.rect, font: .systemFont(ofSize: 9),
-                             color: lit ? .white : .secondaryLabelColor, dy: 9)
+            // 小字：被占用 → 功能名（功能色）；否则 → 硬件名
+            let sub = badge?.text ?? key.sub
+            if !sub.isEmpty {
+                let subColor: NSColor = lit ? .white
+                    : (badge != nil ? badge!.color : (key.triggerID == nil ? .tertiaryLabelColor : .secondaryLabelColor))
+                drawCentered(sub, in: key.rect, font: .systemFont(ofSize: 9, weight: badge != nil ? .semibold : .regular),
+                             color: subColor, dy: 9)
             }
         }
     }

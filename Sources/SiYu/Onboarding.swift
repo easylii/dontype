@@ -48,7 +48,6 @@ final class Onboarding: NSObject {
     private var modelDetail: NSTextField?,  modelButton: NSButton?,  modelBar: NSProgressIndicator?
     private var backendDetail: NSTextField?, backendButton: NSButton?
     private var cleanupBackendPopup: NSPopUpButton?
-    private var assistantDetail: NSTextField?
     private var hotkeyDetail: NSTextField?
     private var readDetail: NSTextField?,   readButton: NSButton?
     private var remoteDetail: NSTextField?, remoteSwitch: NSButton?
@@ -61,7 +60,6 @@ final class Onboarding: NSObject {
     var onChangeUILang: ((String) -> Void)?
     var onChangeRecogLang: ((String) -> Void)?
     var onChangeCleanupBackend: ((String) -> Void)?
-    var onConfigureAssistant: (() -> Void)?
     var onChangeRemoteEnabled: ((Bool) -> Void)?
     var onConfigureRemote: (() -> Void)?
 
@@ -103,7 +101,7 @@ final class Onboarding: NSObject {
     private func clearRefs() {
         micDetail = nil; micButton = nil; speechDetail = nil; speechButton = nil
         axDetail = nil; axButton = nil; modelDetail = nil; modelButton = nil; modelBar = nil
-        backendDetail = nil; backendButton = nil; cleanupBackendPopup = nil; assistantDetail = nil; hotkeyDetail = nil
+        backendDetail = nil; backendButton = nil; cleanupBackendPopup = nil; hotkeyDetail = nil
         readDetail = nil; readButton = nil; consentStatus = nil
         remoteDetail = nil; remoteSwitch = nil
     }
@@ -266,22 +264,17 @@ final class Onboarding: NSObject {
         root.addArrangedSubview(backend.view)
         root.addArrangedSubview(cleanupBackendRow())
 
-        let hk = row(title: L.t(zh: "⑦ 开始/结束热键", en: "⑦ Start/stop hotkey"),
+        let hk = row(title: L.t(zh: "⑦ 热键（听写 / 朗读 / 语音助手）", en: "⑦ Hotkeys (dictation / read / assistant)"),
                      button: L.t(zh: "设置", en: "Configure"), action: #selector(configureHotkey))
         hotkeyDetail = hk.detail
         root.addArrangedSubview(hk.view)
 
         root.addArrangedSubview(remoteRow())
 
-        let rd = row(title: L.t(zh: "⑨ 朗读选中文字", en: "⑨ Read selection aloud"),
+        let rd = row(title: L.t(zh: "⑨ 朗读声音（语音 / 语速）", en: "⑨ Read-aloud voice (voice / speed)"),
                      button: L.t(zh: "设置", en: "Configure"), action: #selector(readButtonTapped))
         readDetail = rd.detail; readButton = rd.button
         root.addArrangedSubview(rd.view)
-
-        let asst = row(title: L.t(zh: "⑩ 语音助手键（双击说话）", en: "⑩ Voice assistant key"),
-                       button: L.t(zh: "设置", en: "Configure"), action: #selector(configureAssistant))
-        assistantDetail = asst.detail
-        root.addArrangedSubview(asst.view)
 
         root.addArrangedSubview(uiLangRow())
 
@@ -716,7 +709,6 @@ final class Onboarding: NSObject {
         refresh()   // 立刻刷新「当前后端」那行的名字/可用性
     }
 
-    @objc private func configureAssistant() { onConfigureAssistant?() }
 
     /// 遥控器 / 手柄：「开 / 关」+ 连接状态 +「设置」打开演示 / 按键映射窗口。
     private func remoteRow() -> NSView {
@@ -854,16 +846,12 @@ final class Onboarding: NSObject {
             backendButton.isEnabled = hasBackend
         }
         if let hotkeyDetail {
-            let tl = Trigger.from(config.triggerKey).label
-            hotkeyDetail.stringValue = "• " + L.t(zh: "双击 \(tl) 开始 · 单击结束 · Esc 取消",
-                                                  en: "double-tap \(tl) to start · tap to stop · Esc cancel")
+            let d = Trigger.from(config.triggerKey).label
+            let r = Trigger.from(config.readKey).label
+            let a = Trigger.from(config.assistantKey).label
+            hotkeyDetail.stringValue = "• " + L.t(zh: "听写 \(d) · 朗读 \(r) · 语音助手 \(a)",
+                                                  en: "Dictation \(d) · Read \(r) · Assistant \(a)")
             hotkeyDetail.textColor = .secondaryLabelColor
-        }
-        if let assistantDetail {
-            let al = Trigger.from(config.assistantKey).label
-            assistantDetail.stringValue = "• " + L.t(zh: "双击 \(al) 激活 · 单击 说/停发送 · Esc 关闭",
-                                                      en: "double-tap \(al) to start · tap to talk/send · Esc to close")
-            assistantDetail.textColor = .secondaryLabelColor
         }
         if remoteDetail != nil { updateRemoteStatus() }
         if let readDetail, let readButton {

@@ -17,8 +17,6 @@ final class ReadSetup: NSObject, NSWindowDelegate {
     private var voicePopup: NSPopUpButton!
     private var langPopup: NSPopUpButton!
     private var speedPopup: NSPopUpButton!
-    private var keyboard: KeyboardRowView!
-    private var keyStatus: NSTextField!
     private var voiceIDs: [String] = []        // 与 voicePopup 各项一一对应（"" = 自动）
     private var langCodes: [String] = ["auto"] // 与 langPopup 各项对应；build() 时按已装嗓音动态填充
     private let speeds: [Double] = [0.4, 0.5, 0.6, 0.7]
@@ -26,7 +24,6 @@ final class ReadSetup: NSObject, NSWindowDelegate {
     func show() {
         if window == nil { build() }
         loadFromConfig()
-        beginKeyTest()
         NSApp.activate(ignoringOtherApps: true)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
@@ -37,7 +34,6 @@ final class ReadSetup: NSObject, NSWindowDelegate {
         if let i = voiceIDs.firstIndex(of: c.readVoice) { voicePopup.selectItem(at: i) } else { voicePopup.selectItem(at: 0) }
         if let i = langCodes.firstIndex(of: c.readLang) { langPopup.selectItem(at: i) } else { langPopup.selectItem(at: 0) }
         if let i = speeds.firstIndex(where: { abs($0 - c.readRate) < 0.001 }) { speedPopup.selectItem(at: i) }
-        keyboard.selectedID = c.readKey
     }
 
     // MARK: 动作（改了即时保存）
@@ -47,13 +43,6 @@ final class ReadSetup: NSObject, NSWindowDelegate {
     @objc private func langChanged() { persist(["readLang": langCodes[langPopup.indexOfSelectedItem]]) }
 
     @objc private func speedChanged() { persist(["readRate": speeds[speedPopup.indexOfSelectedItem]]) }
-
-    private func keyChanged(_ t: Trigger) {
-        persist(["readKey": t.id])
-        readHotkey.setTrigger(t)
-        keyboard.selectedID = t.id
-        beginKeyTest()
-    }
 
     @objc private func preview() {
         let c = Config.load()
@@ -70,32 +59,12 @@ final class ReadSetup: NSObject, NSWindowDelegate {
 
     @objc private func done() { window?.close() }
 
-    /// 触发键测试态：双击候选键只回调反馈、不真的开始朗读；关窗时退出。
-    private func beginKeyTest() {
-        readHotkey.testMode = true
-        readHotkey.onTestDoubleTap = { [weak self] in
-            guard let self else { return }
-            self.keyboard.flash(self.keyboard.selectedID)
-            self.keyStatus.stringValue = "✓ " + L.t(zh: "检测到双击，可用", en: "Double-tap detected — works")
-            self.keyStatus.textColor = .systemGreen
-        }
-        let label = Trigger.from(keyboard.selectedID).label
-        keyStatus.stringValue = "• " + L.t(zh: "双击 \(label) 试试（测试时不会真的开始读）",
-                                           en: "Double-tap \(label) to test (won't actually read)")
-        keyStatus.textColor = .secondaryLabelColor
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        readHotkey.testMode = false
-        readHotkey.onTestDoubleTap = nil
-    }
-
     // MARK: UI
 
     private func build() {
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 320),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        w.title = L.t(zh: "丝语 · 朗读设置", en: "Dontype · Read-aloud Settings")
+        w.title = L.t(zh: "丝语 · 朗读声音", en: "Dontype · Read-aloud Voice")
         w.isReleasedWhenClosed = false
         w.level = .floating
         w.delegate = self
@@ -155,21 +124,11 @@ final class ReadSetup: NSObject, NSWindowDelegate {
         speedRow.addArrangedSubview(preview)
         root.addArrangedSubview(speedRow)
 
-        // 触发键：虚拟键盘点选 + 双击测试反馈
-        let keyLabel = NSTextField(labelWithString: L.t(zh: "触发键（点键盘上的键选 · 双击测试）",
-                                                        en: "Trigger key (click a key · double-tap to test)"))
-        keyLabel.font = .systemFont(ofSize: 13)
-        root.addArrangedSubview(keyLabel)
-        keyboard = KeyboardRowView()
-        keyboard.translatesAutoresizingMaskIntoConstraints = false
-        keyboard.widthAnchor.constraint(equalToConstant: 412).isActive = true
-        keyboard.heightAnchor.constraint(equalToConstant: 52).isActive = true
-        keyboard.onSelect = { [weak self] t in self?.keyChanged(t) }
-        root.addArrangedSubview(keyboard)
-        keyStatus = NSTextField(labelWithString: "…")
-        keyStatus.font = .systemFont(ofSize: 11); keyStatus.textColor = .secondaryLabelColor
-        keyStatus.lineBreakMode = .byWordWrapping; keyStatus.preferredMaxLayoutWidth = 412
-        root.addArrangedSubview(keyStatus)
+        // 触发键在「热键」面板统一设置（这里只管声音）
+        let keyHint = NSTextField(labelWithString: L.t(zh: "触发键在「设置向导 ▸ 热键」里统一设置。",
+                                                       en: "The trigger key is set in Setup ▸ Hotkeys."))
+        keyHint.font = .systemFont(ofSize: 11); keyHint.textColor = .tertiaryLabelColor
+        root.addArrangedSubview(keyHint)
 
         // 完成
         let doneBtn = NSButton(title: L.t(zh: "完成", en: "Done"), target: self, action: #selector(done))
