@@ -33,14 +33,19 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
     private var rowViews: [String: NSView] = [:]         // 键码 → 行容器（按下时高亮）
     private var popups: [String: NSPopUpButton] = [:]    // 键码 → 动作下拉
     private var remoteMap: [String: String] = [:]        // 当前映射（code → action），改了即时持久化
-    private var codeReadout: NSTextField?                // 实时读数：原始报文 hex + 检测到的位码 dX.Y
+    private var codeReadout: NSTextField?                // 解码读数：检测到的位码 dX.Y → 键名
+    private var rawReadout: NSTextField?                 // 原始报文读数：最近报文 id=X · hex（看是否还走 251）
+    private var b0Cells: [NSTextField] = []              // data byte 0 的 8 个 bit 格子（按 bit 序号索引）
+    private var b1Cells: [NSTextField] = []              // data byte 1 的 8 个 bit 格子
 
     func show() {
         remoteMap = Config.load().remoteMap            // 进来先拿当前映射
         if window == nil { build() }
         remote.start()
         remote.suppressed = true                       // 配置期间：按键只点亮、不执行动作
+        remote.logAll = true                           // 全记日志（万一不走 251，可从日志看真 id）
         remote.onState = { [weak self] pressed in self?.applyPressed(pressed) }
+        remote.onRawReport = { [weak self] id, bytes in self?.applyRaw(id, bytes) }
         syncPopups()                                   // 下拉按当前映射回填
         startTimers()
         NSApp.activate(ignoringOtherApps: true)
@@ -51,7 +56,9 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         connTimer?.invalidate(); connTimer = nil
         accessTimer?.invalidate(); accessTimer = nil
         remote.onState = nil                           // 放开感知，恢复正常执行
+        remote.onRawReport = nil
         remote.suppressed = false
+        remote.logAll = false
         rowViews.values.forEach { $0.layer?.backgroundColor = NSColor.clear.cgColor }
     }
 
@@ -285,34 +292,97 @@ final class RemoteSetup: NSObject, NSWindowDelegate {
         scroll.documentView = rows
         host.addSubview(scroll)
 
-        // 实时读数条：原始报文 hex + 检测到的位码（按键时把「数字」读出来，便于辨识/校准未知键）
-        let readout = NSTextField(labelWithString: L.t(zh: "等待按键…", en: "Waiting for a key…"))
-        readout.font = .monospacedSystemFont(ofSize: 11.5, weight: .medium)
-        readout.textColor = .secondaryLabelColor
-        readout.lineBreakMode = .byTruncatingTail
-        readout.translatesAutoresizingMaskIntoConstraints = false
-        codeReadout = readout
-        host.addSubview(readout)
+        // 底部诊断面板：最近原始报文 + bit 格子（按任意键都动，看是否还走 id=251）+ 解码读数
+        let rawL = NSTextField(labelWithString: L.t(zh: "最近报文：等待按键…", en: "Last report: waiting…"))
+        rawL.font = .monospacedSystemFont(ofSize: 11.5, weight: .semibold); rawL.textColor = .secondaryLabelColor
+        rawL.lineBreakMode = .byTruncatingTail
+        rawReadout = rawL
+
+        let codeL = NSTextField(labelWithString: L.t(zh: "等待按键…", en: "Waiting for a key…"))
+        codeL.font = .monospacedSystemFont(ofSize: 11.5, weight: .medium); codeL.textColor = .secondaryLabelColor
+        codeL.lineBreakMode = .byTruncatingTail
+        codeReadout = codeL
+
+        let panel = NSStackView(views: [rawL, buildBitGrid(), codeL])
+        panel.orientation = .vertical; panel.alignment = .leading; panel.spacing = 6
+        panel.translatesAutoresizingMaskIntoConstraints = false
+        host.addSubview(panel)
 
         NSLayoutConstraint.activate([
             rows.topAnchor.constraint(equalTo: scroll.contentView.topAnchor, constant: 2),
             rows.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor, constant: 2),
             rows.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor, constant: -4),
 
-            readout.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 6),
-            readout.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -6),
-            readout.bottomAnchor.constraint(equalTo: host.bottomAnchor, constant: -6),
+            panel.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 6),
+            panel.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -6),
+            panel.bottomAnchor.constraint(equalTo: host.bottomAnchor, constant: -8),
 
             web.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 6),
             web.topAnchor.constraint(equalTo: host.topAnchor, constant: 6),
-            web.bottomAnchor.constraint(equalTo: readout.topAnchor, constant: -8),
+            web.bottomAnchor.constraint(equalTo: panel.topAnchor, constant: -10),
             web.widthAnchor.constraint(equalToConstant: 150),
             scroll.leadingAnchor.constraint(equalTo: web.trailingAnchor, constant: 10),
             scroll.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -6),
             scroll.topAnchor.constraint(equalTo: host.topAnchor, constant: 6),
-            scroll.bottomAnchor.constraint(equalTo: readout.topAnchor, constant: -8),
+            scroll.bottomAnchor.constraint(equalTo: panel.topAnchor, constant: -10),
         ])
         return host
+    }
+
+    /// 两行 bit 格子（data byte 0 / 1），每行 8 格按 bit7→bit0 排（与旧网页一致）；存进 b0Cells/b1Cells 供点亮。
+    private func buildBitGrid() -> NSView {
+        func byteRow(_ title: String) -> (NSStackView, [NSTextField]) {
+            let lab = NSTextField(labelWithString: title)
+            lab.font = .systemFont(ofSize: 10, weight: .semibold); lab.textColor = .tertiaryLabelColor
+            lab.translatesAutoresizingMaskIntoConstraints = false
+            lab.widthAnchor.constraint(equalToConstant: 74).isActive = true
+            var byBit = [NSTextField?](repeating: nil, count: 8)
+            let cellsRow = NSStackView(); cellsRow.orientation = .horizontal; cellsRow.spacing = 3
+            for bit in stride(from: 7, through: 0, by: -1) {
+                let c = bitCell(bit); byBit[bit] = c; cellsRow.addArrangedSubview(c)
+            }
+            let row = NSStackView(views: [lab, cellsRow])
+            row.orientation = .horizontal; row.spacing = 8; row.alignment = .centerY
+            return (row, byBit.compactMap { $0 })   // 返回按 bit 序号（0…7）的数组
+        }
+        let (r0, c0) = byteRow("data byte 0"); b0Cells = c0
+        let (r1, c1) = byteRow("data byte 1"); b1Cells = c1
+        let g = NSStackView(views: [r0, r1])
+        g.orientation = .vertical; g.alignment = .leading; g.spacing = 4
+        return g
+    }
+
+    private func bitCell(_ bit: Int) -> NSTextField {
+        let t = NSTextField(labelWithString: "\(bit)")
+        t.alignment = .center
+        t.font = .monospacedSystemFont(ofSize: 10, weight: .semibold)
+        t.textColor = .tertiaryLabelColor
+        t.isBezeled = false; t.isEditable = false; t.drawsBackground = false
+        t.wantsLayer = true
+        t.layer?.cornerRadius = 4; t.layer?.borderWidth = 1
+        t.layer?.borderColor = NSColor.separatorColor.cgColor
+        t.translatesAutoresizingMaskIntoConstraints = false
+        t.widthAnchor.constraint(equalToConstant: 22).isActive = true
+        t.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        return t
+    }
+
+    /// 原始报文回调：短报文（≤8 字节，排除触摸长流）→ 读出 id+hex、点亮 bit 格子。
+    private func applyRaw(_ id: Int, _ bytes: [UInt8]) {
+        guard bytes.count <= 8 else { return }
+        let hex = bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
+        rawReadout?.stringValue = L.t(zh: "最近报文 id=\(id) · \(hex)", en: "Last report id=\(id) · \(hex)")
+        let b0 = bytes.count > 1 ? Int(bytes[1]) : 0
+        let b1 = bytes.count > 2 ? Int(bytes[2]) : 0
+        for bit in 0..<8 {
+            if bit < b0Cells.count { setCell(b0Cells[bit], on: b0 & (1 << bit) != 0) }
+            if bit < b1Cells.count { setCell(b1Cells[bit], on: b1 & (1 << bit) != 0) }
+        }
+    }
+
+    private func setCell(_ c: NSTextField, on: Bool) {
+        c.layer?.backgroundColor = on ? NSColor.systemGreen.cgColor : NSColor.clear.cgColor
+        c.textColor = on ? NSColor(calibratedWhite: 0.08, alpha: 1) : .tertiaryLabelColor
     }
 
     /// 把按下的位码集合 → 「报文 FB xx xx · 检测到 dX.Y → 键名」读数（无按键 = 等待）。

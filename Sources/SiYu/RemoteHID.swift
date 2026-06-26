@@ -10,6 +10,8 @@ final class RemoteHID {
     var onButtonEdge: ((String, Bool) -> Void)?
     /// 当前按住的全部键集合 —— 设置页实时点亮用。
     var onState: ((Set<String>) -> Void)?
+    /// 每一条原始报文（任意 report id，不只 251）→ (id, bytes)。设置页诊断/点格子用，主线程。
+    var onRawReport: ((Int, [UInt8]) -> Void)?
     /// 设置页打开时置 true：仍回调 onState 点亮，但 AppDelegate 不执行动作（免得校准时误触发）。
     var suppressed = false
     /// 诊断：把遥控器「所有」报文（不只 id=251）都写进日志 —— 用来看触摸面有没有发坐标。
@@ -129,12 +131,16 @@ final class RemoteHID {
         }, ctx)
     }
 
-    /// 报文入口：诊断时全记；id=251 正常解码。
+    /// 报文入口：诊断时全记；把每条原始报文抛给 onRawReport（设置页用，看是否还走 id=251）；id=251 正常解码。
     private func onReport(id: Int, ptr: UnsafeMutablePointer<UInt8>, len: Int) {
         if logAll {
             var hex = ""
             for i in 0..<min(len, 32) { hex += String(format: "%02x ", ptr[i]) }
             FileLog.write("🎛 报文 id=\(id) len=\(len): \(hex)")
+        }
+        if let cb = onRawReport, len >= 1 {              // 任意 id 都抛（设置页自行筛短报文）
+            var bytes = [UInt8](); for i in 0..<min(len, 20) { bytes.append(ptr[i]) }
+            cb(id, bytes)
         }
         guard id == RemoteHID.reportID, len >= 3 else { return }
         handle(b0: ptr[1], b1: ptr[2])
