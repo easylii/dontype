@@ -100,17 +100,25 @@ enum AudioDevices {
     }
 
     /// 智能选择：返回 (设备, 决策说明, 分类)；无任何输入设备返回 nil
+    /// 优先级：盖开内置 → 有线/USB 外接(无提示音) → iPhone 连续互通(每次会 ding) → 系统默认
     static func smartPick() -> (Device, String, MicSourceKind)? {
         let devs = inputDevices()
         let closed = isClamshellClosed()
+        // ① 盖子开 → 用内置（无提示音）
         if !closed, let builtin = devs.first(where: { isBuiltIn($0.id) }) {
             return (builtin, "盖子开，用内置", .builtin)
         }
-        if let phone = devs.first(where: { isContinuity($0.id, name: $0.name) }) {
-            return (phone, closed ? "合盖，用 iPhone" : "无内置，用 iPhone", .phone)
+        // ② 有线/USB 外接麦（如摄像头）→ 直连无 ding，优先于 iPhone
+        if let wired = devs.first(where: { !isBuiltIn($0.id) && !isContinuity($0.id, name: $0.name) }) {
+            return (wired, "外接麦克风（无提示音）", .external)
         }
+        // ③ iPhone/iPad 连续互通 → 每次调用会响一声 ding，放后面
+        if let phone = devs.first(where: { isContinuity($0.id, name: $0.name) }) {
+            return (phone, closed ? "合盖，用 iPhone" : "无内置/外接，用 iPhone", .phone)
+        }
+        // ④ 兜底：系统默认
         if let def = defaultInput() {
-            return (def, "无内置/iPhone，跟随系统默认", kind(of: def))
+            return (def, "跟随系统默认", kind(of: def))
         }
         return nil
     }
