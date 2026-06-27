@@ -18,7 +18,7 @@ final class Dictation: NSObject {
     private enum Backend { case whisper, apple }
     private var backend: Backend = .apple
 
-    private let engine = AVAudioEngine()
+    private var engine = AVAudioEngine()   // 每次录音换全新引擎 → 切麦克风设备才会真正生效
     private var tapInstalled = false
 
     // whisper 后端：录音文件
@@ -70,15 +70,19 @@ final class Dictation: NSObject {
         var dev = p0.0, why = p0.1
         sourceKind = p0.2
 
+        engine = AVAudioEngine()       // 全新引擎：换到非默认设备（如 USB 摄像头麦）才会真正生效、格式才会刷新
         let input = engine.inputNode
-        // 把引擎输入切到选中的设备，并返回该设备的输入格式
+        // 把引擎输入切到选中的设备，返回它的有效输入格式（out 无效就用 in）
         func applyDevice(_ id: AudioDeviceID) -> AVAudioFormat {
             var x = id
             if let au = input.audioUnit {
-                _ = AudioUnitSetProperty(au, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
-                                         &x, UInt32(MemoryLayout<AudioDeviceID>.size))
+                let err = AudioUnitSetProperty(au, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                               &x, UInt32(MemoryLayout<AudioDeviceID>.size))
+                if err != noErr { FileLog.write("✗ 设置麦克风设备失败 err=\(err)") }
             }
-            return input.outputFormat(forBus: 0)
+            let out = input.outputFormat(forBus: 0), inn = input.inputFormat(forBus: 0)
+            FileLog.write("设备格式 out=\(out.channelCount)ch/\(Int(out.sampleRate)) in=\(inn.channelCount)ch/\(Int(inn.sampleRate))")
+            return (out.channelCount > 0 && out.sampleRate > 0) ? out : inn
         }
         var format = applyDevice(dev.id)
         FileLog.write("麦克风：\(dev.name)（\(why)）")
