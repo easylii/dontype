@@ -107,12 +107,23 @@ final class HandGestureController {
     private var smoothRatio: Double = -1          // 捏合比例的低通
     private var pinching = false
     private var pinchStreak = 0                   // 连续几帧想翻转 → 去抖
-    private var cursor: CGPoint = .zero           // 屏幕坐标（左上原点）
+    private var cursor: CGPoint = .zero           // 全局 CGEvent 坐标（左上原点，跨所有屏）
+    private var deskBounds: CGRect = .zero        // 所有显示器并集（CGEvent 坐标）
+
+    /// 所有显示器并集 —— CGDisplayBounds 本就是 CGEvent 的全局坐标系，用它钳位才能跨屏。
+    private func desktopBounds() -> CGRect {
+        var count: UInt32 = 0
+        CGGetActiveDisplayList(0, nil, &count)
+        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        CGGetActiveDisplayList(count, &ids, &count)
+        var r = CGRect.null
+        for id in ids { r = r.union(CGDisplayBounds(id)) }
+        return r.isNull ? (NSScreen.main?.frame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)) : r
+    }
 
     private func begin() {
-        let m = NSEvent.mouseLocation
-        let h = NSScreen.main?.frame.height ?? 900
-        cursor = CGPoint(x: m.x, y: h - m.y)
+        cursor = CGEvent(source: nil)?.location ?? .zero   // 当前光标（全局 CGEvent 坐标）
+        deskBounds = desktopBounds()
         filterX.reset(); filterY.reset(); lastIndex = nil; smoothRatio = -1; pinching = false; pinchStreak = 0
     }
     private func end() {
@@ -126,7 +137,8 @@ final class HandGestureController {
               let thumb = try? hand.recognizedPoint(.thumbTip), thumb.confidence > 0.4,
               let wrist = try? hand.recognizedPoint(.wrist),
               let mcp = try? hand.recognizedPoint(.middleMCP) else {
-            filterX.reset(); filterY.reset(); lastIndex = nil   // 手丢了：复位，避免重新出现时跳
+            if pinching { post(.leftMouseUp); pinching = false; pinchStreak = 0; onPinch?(false) }  // 手丢了：松开，别卡在拖动
+            filterX.reset(); filterY.reset(); lastIndex = nil
             return
         }
         let t = ProcessInfo.processInfo.systemUptime
@@ -138,10 +150,11 @@ final class HandGestureController {
         let span = Double(max(0.0001, hypot(wrist.location.x - mcp.location.x, wrist.location.y - mcp.location.y)))
         let rawRatio = Double(hypot(thumb.location.x - idx.location.x, thumb.location.y - idx.location.y)) / span
         smoothRatio = smoothRatio < 0 ? rawRatio : (smoothRatio * 0.6 + rawRatio * 0.4)
-        let want = pinching ? (smoothRatio < 0.75) : (smoothRatio < 0.5)
+        // 收紧：要捏得够紧(<0.38)才算按下，松到 >0.6 才松开；连续 3 帧才翻转 → 移动时不再误触选择
+        let want = pinching ? (smoothRatio < 0.6) : (smoothRatio < 0.38)
         if want != pinching {
             pinchStreak += 1
-            if pinchStreak >= 2 {
+            if pinchStreak >= 3 {
                 pinching = want; pinchStreak = 0
                 post(pinching ? .leftMouseDown : .leftMouseUp); onPinch?(pinching)
             }
@@ -152,10 +165,8 @@ final class HandGestureController {
         if abs(dx) < 0.0015 { dx = 0 }
         if abs(dy) < 0.0015 { dy = 0 }
         let g = gain * (pinching ? 0.35 : 1.0)       // 捏合时降速，点击更稳、少误拖
-        if let scr = NSScreen.main?.frame {
-            cursor.x = min(max(0, cursor.x - dx * g), scr.width - 1)
-            cursor.y = min(max(0, cursor.y - dy * g), scr.height - 1)
-        }
+        cursor.x = min(max(deskBounds.minX, cursor.x - dx * g), deskBounds.maxX - 1)
+        cursor.y = min(max(deskBounds.minY, cursor.y - dy * g), deskBounds.maxY - 1)
         post(pinching ? .leftMouseDragged : .mouseMoved)
     }
 
