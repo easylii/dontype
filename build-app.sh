@@ -46,14 +46,16 @@ fi
 # 所以 TCC（辅助功能等）授权一次后跨重新编译永久有效，不必每次重授权。
 # 证书不在钥匙串时（如换台电脑），自动从 .cert/ 导入。
 SIGN_ID="SiYu Dev"
-# 自签名证书未受信任，不会出现在 find-identity 列表里，用 find-certificate 判断是否已在钥匙串
-if ! security find-certificate -c "$SIGN_ID" ~/Library/Keychains/login.keychain-db >/dev/null 2>&1; then
-  echo "▸ 钥匙串无「$SIGN_ID」，从 .cert/ 导入…"
+# 必须检查「身份」(证书+私钥)而非只有证书 —— 否则私钥丢了仍跳过导入、签成 adhoc，会把 TCC 授权打掉。
+# 自签名不受信任，find-identity 仍会列出它(带 NOT_TRUSTED)，用它判断身份是否齐全。
+if ! security find-identity ~/Library/Keychains/login.keychain-db 2>/dev/null | grep -q "$SIGN_ID"; then
+  echo "▸ 钥匙串无可用身份「$SIGN_ID」，从 .cert/ 导入…"
   security import .cert/siyu-dev.p12 -k ~/Library/Keychains/login.keychain-db \
     -P siyu -T /usr/bin/codesign -T /usr/bin/security >/dev/null 2>&1 || true
 fi
 echo "▸ 用固定证书「$SIGN_ID」签名（授权跨重编不失效）…"
-codesign --force --deep --sign "$SIGN_ID" "$APP"
+# 注意：不要用 --deep —— 单可执行包用 --deep 会签成 adhoc，破坏稳定身份、打掉 TCC 授权。
+codesign --force --sign "$SIGN_ID" "$APP"
 
 echo "✓ 完成：$(pwd)/$APP"
 echo "  首次运行：open $APP  然后按提示授予 麦克风 / 语音识别 / 辅助功能 权限并重开。"
