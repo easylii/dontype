@@ -225,10 +225,7 @@ final class CameraWindow: NSObject, NSWindowDelegate {
         let pl = AVCaptureVideoPreviewLayer(session: tracker.session)
         pl.videoGravity = .resizeAspect
         pl.frame = previewHost.bounds
-        if let conn = pl.connection, conn.isVideoMirroringSupported {   // 自拍镜像（layerPointConverted 会跟着镜像，叠加层仍对齐）
-            conn.automaticallyAdjustsVideoMirroring = false
-            conn.isVideoMirrored = true
-        }
+        pl.transform = CATransform3DMakeScale(-1, 1, 1)   // 自拍镜像（绕中心水平翻）；叠加层在 toView 里也翻 X 对齐
         previewHost.layer?.addSublayer(pl)
         previewLayer = pl
 
@@ -244,18 +241,18 @@ final class CameraWindow: NSObject, NSWindowDelegate {
         statusLabel.frame = NSRect(x: 14, y: 14, width: 318, height: 20)
         content.addSubview(statusLabel)
 
-        func chk(_ title: String, _ x: CGFloat, _ w: CGFloat, _ sel: Selector) -> NSButton {
+        func chk(_ title: String, _ x: CGFloat, _ w: CGFloat, _ on: Bool, _ sel: Selector) -> NSButton {
             let b = NSButton(checkboxWithTitle: title, target: self, action: sel)
-            b.state = .on; b.frame = NSRect(x: x, y: 12, width: w, height: 24); return b
+            b.state = on ? .on : .off; b.frame = NSRect(x: x, y: 12, width: w, height: 24); return b
         }
         // 手势控制鼠标（默认关，开了才接管）
         let g = NSButton(checkboxWithTitle: L.t(zh: "🖐 手势控制鼠标", en: "🖐 Gesture control"),
                          target: self, action: #selector(toggleGesture(_:)))
         g.state = .off; g.frame = NSRect(x: 340, y: 12, width: 150, height: 24)
         content.addSubview(g)
-        content.addSubview(chk(L.t(zh: "脸", en: "Face"), W - 290, 46, #selector(toggleFace(_:))))
-        content.addSubview(chk(L.t(zh: "手", en: "Hands"), W - 240, 46, #selector(toggleHands(_:))))
-        content.addSubview(chk(L.t(zh: "身体", en: "Body"), W - 190, 64, #selector(toggleBody(_:))))
+        content.addSubview(chk(L.t(zh: "脸", en: "Face"), W - 290, 46, false, #selector(toggleFace(_:))))
+        content.addSubview(chk(L.t(zh: "手", en: "Hands"), W - 240, 46, true, #selector(toggleHands(_:))))
+        content.addSubview(chk(L.t(zh: "身体", en: "Body"), W - 190, 64, false, #selector(toggleBody(_:))))
         let doneBtn = NSButton(title: L.t(zh: "完成", en: "Done"), target: self, action: #selector(done))
         doneBtn.bezelStyle = .rounded; doneBtn.keyEquivalent = "\r"
         doneBtn.frame = NSRect(x: W - 96, y: 9, width: 84, height: 28)
@@ -270,17 +267,18 @@ final class CameraWindow: NSObject, NSWindowDelegate {
 final class TrackingOverlayView: NSView {
     override var isFlipped: Bool { true }   // 用左上原点，和 layerPointConverted 的输出对齐（否则上下相反）
     weak var previewLayer: AVCaptureVideoPreviewLayer?
-    var showFace = true { didSet { needsDisplay = true } }
+    var showFace = false { didSet { needsDisplay = true } }   // 默认只看手
     var showHands = true { didSet { needsDisplay = true } }
-    var showBody = true { didSet { needsDisplay = true } }
+    var showBody = false { didSet { needsDisplay = true } }
     private var results = CameraTracker.Results()
 
     func update(_ r: CameraTracker.Results) { results = r; needsDisplay = true }
 
-    /// Vision 归一化点（左下原点）→ 预览层视图坐标。
+    /// Vision 归一化点（左下原点）→ 预览层视图坐标；预览做了水平镜像，这里也翻 X 对齐。
     private func toView(_ v: CGPoint) -> CGPoint? {
         guard let pl = previewLayer else { return nil }
-        return pl.layerPointConverted(fromCaptureDevicePoint: CGPoint(x: v.x, y: 1 - v.y))
+        let p = pl.layerPointConverted(fromCaptureDevicePoint: CGPoint(x: v.x, y: 1 - v.y))
+        return CGPoint(x: bounds.width - p.x, y: p.y)
     }
 
     private func dot(_ p: CGPoint, _ r: CGFloat, _ color: NSColor) {
