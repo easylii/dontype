@@ -6,7 +6,7 @@ final class VoiceOrb {
     private var panel: NSPanel?
     private var orb: OrbView?
     private var bubblePanel: NSPanel?
-    private var bubbleBG: NSView?
+    private var bubbleBG: ThoughtBubbleView?
     private var bubbleLabel: NSTextField?
     private var bubbleSeq = 0
 
@@ -28,14 +28,13 @@ final class VoiceOrb {
     }
     func setLevel(_ lv: Float) { orb?.setLevel(lv) }
 
-    /// 半透明状态泡泡：球的右上方，大字、最多 3 行自动换行，向上飘一小段 + 渐隐，约 2.4s 消失（复用面板）。
+    /// 思考泡泡：球的右上方，大字、最多 3 行自动换行，左下角带「在想」拖尾两小圆，向上飘 + 渐隐约 2.4s（复用面板）。
     func bubble(_ text: String) {
         if bubblePanel == nil { buildBubble() }
-        guard let bp = bubblePanel, let pill = bubbleBG, let lab = bubbleLabel, let orbP = panel else { return }
+        guard let bp = bubblePanel, let bg = bubbleBG, let lab = bubbleLabel, let orbP = panel else { return }
         lab.stringValue = text
 
-        // 按内容算大小：固定一个偏大的宽度，高度随 1–3 行增长
-        let padX: CGFloat = 18, padY: CGFloat = 14, margin: CGFloat = 18
+        let padX: CGFloat = 18, padY: CGFloat = 12
         let pillW: CGFloat = 230
         let textW = pillW - padX * 2
         let bound = (text as NSString).boundingRect(
@@ -44,16 +43,21 @@ final class VoiceOrb {
             attributes: [.font: lab.font as Any])
         let textH = min(ceil(bound.height), lineHeightCap)          // 封顶 3 行
         let pillH = max(textH + padY * 2, 44)
-        let panelW = pillW + margin * 2, panelH = pillH + margin * 2
 
+        // 主体周围留边；左下角留出拖尾小圆的空间
+        let leftPad: CGFloat = 14, rightPad: CGFloat = 16, topPad: CGFloat = 16, tailPad: CGFloat = 30
+        let panelW = leftPad + pillW + rightPad, panelH = tailPad + pillH + topPad
         bp.setContentSize(NSSize(width: panelW, height: panelH))
-        pill.frame = NSRect(x: margin, y: margin, width: pillW, height: pillH)
-        lab.frame = NSRect(x: padX, y: padY, width: textW, height: textH)
 
-        // 位置：球的右上方（往右挪）
-        let centerX = orbP.frame.midX + 92
-        let startX = centerX - panelW / 2
-        let startY = orbP.frame.midY + 8
+        let body = NSRect(x: leftPad, y: tailPad, width: pillW, height: pillH)
+        bg.frame = NSRect(x: 0, y: 0, width: panelW, height: panelH)
+        bg.bodyRect = body
+        lab.frame = NSRect(x: body.minX + padX, y: body.minY + padY, width: textW, height: textH)
+
+        // 位置：球的右上方，再往右 ~50px
+        let bodyCenterX = orbP.frame.midX + 142
+        let startX = bodyCenterX - (leftPad + pillW / 2)
+        let startY = orbP.frame.midY + 6
         bp.setFrameOrigin(NSPoint(x: startX, y: startY))
         bp.alphaValue = 0.95
         bp.orderFrontRegardless()
@@ -73,26 +77,21 @@ final class VoiceOrb {
     private var lineHeightCap: CGFloat { ceil((NSFont.systemFont(ofSize: 16, weight: .medium).boundingRectForFont.height) * 3) + 6 }
 
     private func buildBubble() {
-        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 266, height: 120),
+        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 280, height: 130),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         p.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
         p.isOpaque = false; p.backgroundColor = .clear; p.hasShadow = false
         p.isFloatingPanel = true; p.hidesOnDeactivate = false
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        let host = NSView(frame: NSRect(x: 0, y: 0, width: 266, height: 120))
-        let pill = NSView()
-        pill.wantsLayer = true
-        pill.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.6).cgColor
-        pill.layer?.cornerRadius = 16; pill.layer?.masksToBounds = true
-        host.addSubview(pill)
+        let bg = ThoughtBubbleView(frame: NSRect(x: 0, y: 0, width: 280, height: 130))
         let lab = NSTextField(wrappingLabelWithString: "")
         lab.font = .systemFont(ofSize: 16, weight: .medium)
         lab.textColor = .white; lab.alignment = .center
         lab.maximumNumberOfLines = 3
         lab.isBezeled = false; lab.isEditable = false; lab.drawsBackground = false
-        pill.addSubview(lab)
-        p.contentView = host
-        bubblePanel = p; bubbleBG = pill; bubbleLabel = lab
+        bg.addSubview(lab)
+        p.contentView = bg
+        bubblePanel = p; bubbleBG = bg; bubbleLabel = lab
     }
 
     private func build() {
@@ -186,5 +185,18 @@ final class OrbView: NSView {
         NSBezierPath(ovalIn: NSRect(x: cx - ro, y: cy - ro, width: ro * 2, height: ro * 2)).fill()
         color.setFill()
         NSBezierPath(ovalIn: NSRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)).fill()
+    }
+}
+
+/// 思考泡泡：圆角主体 + 左下角两个递减小圆（「在想」拖尾，朝状态球方向），半透明深色。
+final class ThoughtBubbleView: NSView {
+    var bodyRect: NSRect = .zero { didSet { needsDisplay = true } }
+    override func draw(_ dirtyRect: NSRect) {
+        guard bodyRect.width > 0 else { return }
+        NSColor.black.withAlphaComponent(0.6).setFill()
+        NSBezierPath(roundedRect: bodyRect, xRadius: 16, yRadius: 16).fill()
+        // 左下角拖尾两小圆（y 向下、x 向左 = 朝球）
+        NSBezierPath(ovalIn: NSRect(x: bodyRect.minX + 6, y: bodyRect.minY - 13, width: 13, height: 13)).fill()
+        NSBezierPath(ovalIn: NSRect(x: bodyRect.minX - 6, y: bodyRect.minY - 26, width: 8,  height: 8)).fill()
     }
 }

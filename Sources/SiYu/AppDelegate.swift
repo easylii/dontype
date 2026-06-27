@@ -241,9 +241,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             else if readArmed, ProcessInfo.processInfo.systemUptime - readArmedAt < 12 {
                 readArmed = false; startReading()
             } else { toggleDictation() }
-        // 取消(返回 ‹)：听写中 → 立刻中止丢弃；朗读中 → 停止朗读；否则 → 给当前 App 发 Esc（通用返回/取消）
+        // 取消(返回 ‹)：助手对话中 → 关闭助手；听写中 → 立刻中止丢弃；朗读中 → 停止朗读；否则 → 发 Esc
         case "cancel":
-            if dictation.isRecording { cancelDictation() }
+            if voiceLoop.active { voiceLoop.stop(); voiceOrb.hide(); rebuildMenu() }
+            else if dictation.isRecording { cancelDictation() }
             else if speaker.isSpeaking { stopReading() }
             else { postKey(53) }
         // 通用规范（不依赖读焦点，网页/原生都一致）：
