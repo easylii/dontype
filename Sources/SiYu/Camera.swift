@@ -75,7 +75,7 @@ final class CameraTracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
 
 /// One-Euro 滤波器：手部追踪治抖的标准做法 —— 慢动作强平滑、快动作低延迟，不像固定低通那样要么抖要么拖。
 struct OneEuroFilter {
-    var minCutoff = 0.6, beta = 0.4, dCutoff = 1.0   // minCutoff 越小静止越平滑（丝滑）
+    var minCutoff = 0.5, beta = 0.2, dCutoff = 1.0   // minCutoff 小=静止更平滑；beta 小=快速移动不被噪声带飞
     private var xPrev: Double?, dxPrev = 0.0, tPrev = 0.0
     private func alpha(_ cutoff: Double, _ dt: Double) -> Double {
         let tau = 1.0 / (2 * .pi * cutoff); return 1.0 / (1.0 + tau / dt)
@@ -109,6 +109,8 @@ final class HandGestureController {
     private var armed = false                     // 「上膛」：手张开过才允许下一次按下，防半握移动误触
     private var pinching = false
     private var pinchStreak = 0                   // 连续几帧想翻转 → 去抖
+    private var pinchAnchor: CGPoint?             // 按下点：捏合时先冻结在这，点击落点才稳
+    private var dragging = false                  // 移动超过阈值才进入拖动
     private var cursor: CGPoint = .zero           // 全局 CGEvent 坐标（左上原点，跨所有屏）
     private var deskBounds: CGRect = .zero        // 所有显示器并集（CGEvent 坐标）
 
@@ -128,6 +130,7 @@ final class HandGestureController {
         deskBounds = desktopBounds()
         filterX.reset(); filterY.reset(); lastIndex = nil
         smoothRatio = -1; smoothSpeed = -1; armed = false; pinching = false; pinchStreak = 0
+        pinchAnchor = nil; dragging = false
     }
     private func end() {
         if pinching { post(.leftMouseUp); pinching = false; onPinch?(false) }
@@ -142,11 +145,18 @@ final class HandGestureController {
               let mcp = try? hand.recognizedPoint(.middleMCP) else {
             if pinching { post(.leftMouseUp); pinching = false; pinchStreak = 0; onPinch?(false) }  // 手丢了：松开，别卡在拖动
             filterX.reset(); filterY.reset(); lastIndex = nil; smoothSpeed = -1; armed = false
+            pinchAnchor = nil; dragging = false
             return
         }
         let t = ProcessInfo.processInfo.systemUptime
-        let s = CGPoint(x: CGFloat(filterX.filter(Double(idx.location.x), t)),
-                        y: CGFloat(filterY.filter(Double(idx.location.y), t)))
+        // 限速去瞬跳：一帧位移超过 maxStep 视为误检/瞬跳，按最大步长追过去（不瞬移）
+        var inp = idx.location
+        if let l = lastIndex {
+            let d = hypot(inp.x - l.x, inp.y - l.y), maxStep: CGFloat = 0.12
+            if d > maxStep { inp = CGPoint(x: l.x + (inp.x - l.x) / d * maxStep, y: l.y + (inp.y - l.y) / d * maxStep) }
+        }
+        let s = CGPoint(x: CGFloat(filterX.filter(Double(inp.x), t)),
+                        y: CGFloat(filterY.filter(Double(inp.y), t)))
         defer { lastIndex = s }
 
         guard let last = lastIndex else { smoothRatio = -1; smoothSpeed = -1; return }   // 第一帧只记位置
@@ -166,18 +176,25 @@ final class HandGestureController {
             pinchStreak += 1
             if pinchStreak >= 2 {
                 pinching = want; pinchStreak = 0
-                if pinching { armed = false }                 // 按下后卸膛，要再张开才能再点
+                if pinching { armed = false; pinchAnchor = cursor; dragging = false }  // 按下：卸膛 + 记按下点
+                else { pinchAnchor = nil; dragging = false }
                 post(pinching ? .leftMouseDown : .leftMouseUp); onPinch?(pinching)
             }
         } else { pinchStreak = 0 }
 
-        // 绝对线性映射：手在画面中央子区域的位置 → 整个桌面对应位置（按桌面范围二次换算）。
-        // 前置镜像翻 X、图像上下翻 Y；smoothSpeed 不参与位置，只用于上面的"静止才允许按下"。
+        // 绝对线性映射：手在画面中央子区域的位置 → 整个桌面对应位置（按桌面范围二次换算）。前置镜像翻 X、图像翻 Y。
         let inner = 1 - 2 * activeMargin
         let fx = min(1, max(0, (Double(1 - s.x) - activeMargin) / inner))
         let fy = min(1, max(0, (Double(1 - s.y) - activeMargin) / inner))
-        cursor.x = deskBounds.minX + CGFloat(fx) * deskBounds.width
-        cursor.y = deskBounds.minY + CGFloat(fy) * deskBounds.height
+        let target = CGPoint(x: deskBounds.minX + CGFloat(fx) * deskBounds.width,
+                             y: deskBounds.minY + CGFloat(fy) * deskBounds.height)
+        // 捏合时先冻结在按下点（点击落点稳、不误拖）；移动超过 30px 才进入拖动
+        if pinching, let a = pinchAnchor, !dragging {
+            if hypot(target.x - a.x, target.y - a.y) > 30 { dragging = true; cursor = target }
+            else { cursor = a }
+        } else {
+            cursor = target
+        }
         post(pinching ? .leftMouseDragged : .mouseMoved)
     }
 
