@@ -35,13 +35,15 @@ final class VoiceOrb {
         lab.stringValue = text
 
         let padX: CGFloat = 18, padY: CGFloat = 12
-        let pillW: CGFloat = 230
-        let textW = pillW - padX * 2
+        let maxTextW: CGFloat = 230                                  // 到这就换行
+        let singleW = ceil((text as NSString).size(withAttributes: [.font: lab.font as Any]).width) + 1
+        let textW = max(40, min(singleW, maxTextW))                  // 跟文字一样宽，短就窄
         let bound = (text as NSString).boundingRect(
             with: NSSize(width: textW, height: 200),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: lab.font as Any])
         let textH = min(ceil(bound.height), lineHeightCap)          // 封顶 3 行
+        let pillW = textW + padX * 2
         let pillH = max(textH + padY * 2, 44)
 
         // 主体周围留边；左下角留出拖尾小圆的空间
