@@ -82,7 +82,8 @@ final class Dictation: NSObject {
             }
             let out = input.outputFormat(forBus: 0), inn = input.inputFormat(forBus: 0)
             FileLog.write("设备格式 out=\(out.channelCount)ch/\(Int(out.sampleRate)) in=\(inn.channelCount)ch/\(Int(inn.sampleRate))")
-            return (out.channelCount > 0 && out.sampleRate > 0) ? out : inn
+            // tap 必须用「硬件输入格式」(inputFormat)，否则 installTap 报 HW/tap 不匹配（C920 的 in/out 不同）
+            return (inn.channelCount > 0 && inn.sampleRate > 0) ? inn : out
         }
         var format = applyDevice(dev.id)
         FileLog.write("麦克风：\(dev.name)（\(why)）")
