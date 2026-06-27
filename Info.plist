@@ -31,6 +31,8 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Self-use build</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Dontype uses the camera for on-device face, hand, and body tracking.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Dontype uses the microphone for voice dictation.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

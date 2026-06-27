@@ -28,6 +28,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 在线语音助手（Claude Code + 语音连续对话，plan 只读），单独 opt-in、走云端。
     private let voiceLoop = VoiceLoop(workdir: (("~/Documents/SiYu") as NSString).expandingTildeInPath)
     private let voiceOrb = VoiceOrb()
+    /// 摄像头 + 本地实时追踪（Apple Vision：脸 / 手 / 身体），从菜单进入。
+    private lazy var cameraWindow = CameraWindow()
 
     /// 遥控器设置（画出遥控器 + 实时点亮 + 每键分配动作 + 触摸板鼠标），从设置进入。
     private lazy var remoteSetup = RemoteSetup(remote: remote, touchpad: touchpad) { [weak self] kv in
@@ -554,6 +556,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                                : L.t(zh: "语音助手 · 在线对话", en: "Voice assistant · online"),
                               image: AssistantIcon.image(), build: buildAssistantSubmenu))
 
+        let camera = NSMenuItem(title: L.t(zh: "摄像头 · 追踪（脸 / 手 / 身体）", en: "Camera · tracking (face / hands / body)"),
+                                action: #selector(openCamera), keyEquivalent: "")
+        camera.image = NSImage(systemSymbolName: "video", accessibilityDescription: nil)
+        camera.target = self
+        menu.addItem(camera)
+
         menu.addItem(.separator())
 
         // 剪贴历史：顶层平铺，点一下复制回剪贴板（不放二级菜单）
@@ -776,6 +784,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func openRemoteSetup() { remoteSetup.show() }
+
+    @objc private func openCamera() { cameraWindow.show() }
 
     /// 菜单开/关语音助手：开 → 显示状态球、进入「待命」（用右侧键说话）；再点 → 关。
     @objc private func openAssistant() {
