@@ -105,6 +105,8 @@ final class HandGestureController {
     private var filterY = OneEuroFilter()
     private var lastIndex: CGPoint?
     private var smoothRatio: Double = -1          // 捏合比例的低通
+    private var smoothSpeed: Double = -1          // 手的移动速度（低通）—— 移动中不许按下
+    private var armed = false                     // 「上膛」：手张开过才允许下一次按下，防半握移动误触
     private var pinching = false
     private var pinchStreak = 0                   // 连续几帧想翻转 → 去抖
     private var cursor: CGPoint = .zero           // 全局 CGEvent 坐标（左上原点，跨所有屏）
@@ -124,7 +126,8 @@ final class HandGestureController {
     private func begin() {
         cursor = CGEvent(source: nil)?.location ?? .zero   // 当前光标（全局 CGEvent 坐标）
         deskBounds = desktopBounds()
-        filterX.reset(); filterY.reset(); lastIndex = nil; smoothRatio = -1; pinching = false; pinchStreak = 0
+        filterX.reset(); filterY.reset(); lastIndex = nil
+        smoothRatio = -1; smoothSpeed = -1; armed = false; pinching = false; pinchStreak = 0
     }
     private func end() {
         if pinching { post(.leftMouseUp); pinching = false; onPinch?(false) }
@@ -138,7 +141,7 @@ final class HandGestureController {
               let wrist = try? hand.recognizedPoint(.wrist),
               let mcp = try? hand.recognizedPoint(.middleMCP) else {
             if pinching { post(.leftMouseUp); pinching = false; pinchStreak = 0; onPinch?(false) }  // 手丢了：松开，别卡在拖动
-            filterX.reset(); filterY.reset(); lastIndex = nil
+            filterX.reset(); filterY.reset(); lastIndex = nil; smoothSpeed = -1; armed = false
             return
         }
         let t = ProcessInfo.processInfo.systemUptime
@@ -146,25 +149,33 @@ final class HandGestureController {
                         y: CGFloat(filterY.filter(Double(idx.location.y), t)))
         defer { lastIndex = s }
 
-        // 捏合：拇指-食指距离 / 手掌尺度（缩放无关）→ 低通 → 滞回 + 连续 2 帧去抖
+        guard let last = lastIndex else { smoothRatio = -1; smoothSpeed = -1; return }   // 第一帧只记位置
+        let mdx = s.x - last.x, mdy = s.y - last.y
+        let speed = Double(hypot(mdx, mdy))
+        smoothSpeed = smoothSpeed < 0 ? speed : (smoothSpeed * 0.6 + speed * 0.4)
+
+        // 捏合：比例 = 拇指-食指距 / 手掌尺度（缩放无关）→ 低通。
+        // 防误触：① 手要先张开(>0.7)「上膛」② 仅在手基本静止时(速度<0.012)才允许按下 ③ 连续 2 帧去抖。
         let span = Double(max(0.0001, hypot(wrist.location.x - mcp.location.x, wrist.location.y - mcp.location.y)))
         let rawRatio = Double(hypot(thumb.location.x - idx.location.x, thumb.location.y - idx.location.y)) / span
         smoothRatio = smoothRatio < 0 ? rawRatio : (smoothRatio * 0.6 + rawRatio * 0.4)
-        // 收紧：要捏得够紧(<0.38)才算按下，松到 >0.6 才松开；连续 3 帧才翻转 → 移动时不再误触选择
-        let want = pinching ? (smoothRatio < 0.6) : (smoothRatio < 0.38)
+        if smoothRatio > 0.7 { armed = true }
+        let want = pinching ? (smoothRatio < 0.6)
+                            : (armed && smoothRatio < 0.36 && smoothSpeed < 0.012)
         if want != pinching {
             pinchStreak += 1
-            if pinchStreak >= 3 {
+            if pinchStreak >= 2 {
                 pinching = want; pinchStreak = 0
+                if pinching { armed = false }                 // 按下后卸膛，要再张开才能再点
                 post(pinching ? .leftMouseDown : .leftMouseUp); onPinch?(pinching)
             }
         } else { pinchStreak = 0 }
 
-        guard let last = lastIndex else { return }
-        var dx = s.x - last.x, dy = s.y - last.y
+        // 移动光标（去抖 + 捏合降速 + 钳到所有屏）
+        var dx = mdx, dy = mdy
         if abs(dx) < 0.0015 { dx = 0 }
         if abs(dy) < 0.0015 { dy = 0 }
-        let g = gain * (pinching ? 0.35 : 1.0)       // 捏合时降速，点击更稳、少误拖
+        let g = gain * (pinching ? 0.35 : 1.0)
         cursor.x = min(max(deskBounds.minX, cursor.x - dx * g), deskBounds.maxX - 1)
         cursor.y = min(max(deskBounds.minY, cursor.y - dy * g), deskBounds.maxY - 1)
         post(pinching ? .leftMouseDragged : .mouseMoved)
