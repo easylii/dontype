@@ -99,7 +99,7 @@ struct OneEuroFilter {
 final class HandGestureController {
     var enabled = false { didSet { if enabled != oldValue { enabled ? begin() : end() } } }
     var onPinch: ((Bool) -> Void)?
-    var gain: CGFloat = (NSScreen.main?.frame.width ?? 1440) * 2.2   // 归一化位移 → 屏幕像素
+    var gain: CGFloat = (NSScreen.main?.frame.width ?? 1440) * 1.2   // 基础增益（再乘指针加速）
 
     private var filterX = OneEuroFilter()        // One-Euro 平滑食指位置，治抖
     private var filterY = OneEuroFilter()
@@ -175,7 +175,9 @@ final class HandGestureController {
         var dx = mdx, dy = mdy
         if abs(dx) < 0.0015 { dx = 0 }
         if abs(dy) < 0.0015 { dy = 0 }
-        let g = gain * (pinching ? 0.35 : 1.0)
+        // 指针加速：慢移→低增益(精准不跳)，快挥→高增益(够到对面屏)
+        let accel = min(3.0, 0.4 + 70 * smoothSpeed)
+        let g = gain * CGFloat(accel) * (pinching ? 0.35 : 1.0)
         cursor.x = min(max(deskBounds.minX, cursor.x - dx * g), deskBounds.maxX - 1)
         cursor.y = min(max(deskBounds.minY, cursor.y - dy * g), deskBounds.maxY - 1)
         post(pinching ? .leftMouseDragged : .mouseMoved)
