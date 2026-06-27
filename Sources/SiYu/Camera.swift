@@ -13,10 +13,13 @@ final class CameraTracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     private var currentInput: AVCaptureDeviceInput?
     private(set) var currentDeviceID: String?
 
-    /// 可用摄像头：内置(MacBook) + 外接(USB/摄像头) + 连续互通(iPhone)。
+    /// 可用摄像头：内置(MacBook) + 外接(USB，如 C920) + 连续互通(iPhone)。
+    /// macOS 14+ 外接是 .external（.externalUnknown 已弃用、在新系统枚举不到），连续互通用 .continuityCamera。
     static func cameras() -> [AVCaptureDevice] {
-        AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .externalUnknown],
-                                         mediaType: .video, position: .unspecified).devices
+        var types: [AVCaptureDevice.DeviceType] = [.builtInWideAngleCamera]
+        if #available(macOS 14.0, *) { types += [.external, .continuityCamera] }
+        else { types.append(.externalUnknown) }
+        return AVCaptureDevice.DiscoverySession(deviceTypes: types, mediaType: .video, position: .unspecified).devices
     }
 
     struct Results {
