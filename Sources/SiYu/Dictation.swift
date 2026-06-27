@@ -61,23 +61,35 @@ final class Dictation: NSObject {
         FileLog.write("开始录音：后端=\(backend == .whisper ? "whisper" : "apple") 麦克风授权=\(micAuth.rawValue)(3=OK)")
 
         // 智能选麦：盖开用内置，合盖用 iPhone，兜底系统默认；一个都没有就报错
-        guard let (dev, why, kind) = AudioDevices.pick(preferredUID: micUID) else {
+        guard let p0 = AudioDevices.pick(preferredUID: micUID) else {
             sourceKind = .off
             FileLog.write("✗ 没有任何可用输入设备")
             throw DictationError.noMicrophone
         }
-        sourceKind = kind
-        var devID = dev.id
-        if let au = engine.inputNode.audioUnit {
-            let err = AudioUnitSetProperty(
-                au, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
-                &devID, UInt32(MemoryLayout<AudioDeviceID>.size)
-            )
-            FileLog.write(err == noErr ? "麦克风：\(dev.name)（\(why)）" : "✗ 设置麦克风失败(\(err))，回退系统默认")
-        }
+        var dev = p0.0, why = p0.1
+        sourceKind = p0.2
 
         let input = engine.inputNode
-        let format = input.outputFormat(forBus: 0)
+        // 把引擎输入切到选中的设备，并返回该设备的输入格式
+        func applyDevice(_ id: AudioDeviceID) -> AVAudioFormat {
+            var x = id
+            if let au = input.audioUnit {
+                _ = AudioUnitSetProperty(au, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                         &x, UInt32(MemoryLayout<AudioDeviceID>.size))
+            }
+            return input.outputFormat(forBus: 0)
+        }
+        var format = applyDevice(dev.id)
+        FileLog.write("麦克风：\(dev.name)（\(why)）")
+
+        // 某些网络摄像头 / 采集卡的麦克风返回无效格式（0 声道或 0 采样率），引擎起不来 →
+        // 回退到「自动选麦」（iPhone / 内置 / 系统默认），保证还能录到音。
+        if (format.channelCount == 0 || format.sampleRate == 0), !micUID.isEmpty,
+           let fb = AudioDevices.pick(preferredUID: "") {
+            dev = fb.0; why = fb.1; sourceKind = fb.2
+            format = applyDevice(dev.id)
+            FileLog.write("✗ 原麦克风格式无效，已回退：\(dev.name)（\(why)）")
+        }
 
         switch backend {
         case .whisper:
