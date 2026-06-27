@@ -10,6 +10,14 @@ final class CameraTracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     private let output = AVCaptureVideoDataOutput()
     private let queue = DispatchQueue(label: "siyu.camera.tracker")
     private var running = false
+    private var currentInput: AVCaptureDeviceInput?
+    private(set) var currentDeviceID: String?
+
+    /// 可用摄像头：内置(MacBook) + 外接(USB/摄像头) + 连续互通(iPhone)。
+    static func cameras() -> [AVCaptureDevice] {
+        AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .externalUnknown],
+                                         mediaType: .video, position: .unspecified).devices
+    }
 
     struct Results {
         var faces: [VNFaceObservation] = []
@@ -33,23 +41,36 @@ final class CameraTracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
 
     private func configureAndRun() {
         guard !running else { return }
-        guard let cam = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: cam) else {
-            onStatus?("找不到摄像头"); return
-        }
         session.beginConfiguration()
         session.sessionPreset = .high
-        if session.canAddInput(input) { session.addInput(input) }
         output.setSampleBufferDelegate(self, queue: queue)
         output.alwaysDiscardsLateVideoFrames = true
         output.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
         if session.canAddOutput(output) { session.addOutput(output) }
-        if let conn = output.connection(with: .video) { conn.isVideoMirrored = false }  // 不镜像，叠加层才对齐
         session.commitConfiguration()
         running = true
-        onStatus?("摄像头：\(cam.localizedName)")
-        FileLog.write("📷 摄像头追踪启动：\(cam.localizedName)")
+        // 默认优先内置(MacBook)；记住上次选的
+        let cams = CameraTracker.cameras()
+        let prefer = UserDefaults.standard.string(forKey: "cameraDeviceID")
+        let dev = cams.first { $0.uniqueID == prefer }
+            ?? cams.first { $0.deviceType == .builtInWideAngleCamera }
+            ?? AVCaptureDevice.default(for: .video) ?? cams.first
+        guard let dev else { onStatus?("找不到摄像头"); return }
+        use(dev)
         queue.async { self.session.startRunning() }
+    }
+
+    /// 切换到指定摄像头（运行中也可切）；不镜像输出，叠加层才对齐。记住选择。
+    func use(_ device: AVCaptureDevice) {
+        guard let input = try? AVCaptureDeviceInput(device: device) else { onStatus?("无法打开：\(device.localizedName)"); return }
+        session.beginConfiguration()
+        if let ci = currentInput { session.removeInput(ci) }
+        if session.canAddInput(input) { session.addInput(input); currentInput = input; currentDeviceID = device.uniqueID }
+        if let conn = output.connection(with: .video) { conn.isVideoMirrored = false }
+        session.commitConfiguration()
+        UserDefaults.standard.set(device.uniqueID, forKey: "cameraDeviceID")
+        onStatus?("摄像头：\(device.localizedName)")
+        FileLog.write("📷 摄像头：\(device.localizedName)")
     }
 
     func stop() {
@@ -213,6 +234,8 @@ final class CameraWindow: NSObject, NSWindowDelegate {
     private var overlay: TrackingOverlayView?
     private var statusLabel: NSTextField!
     private var camName = ""
+    private var cameraPopup: NSPopUpButton!
+    private var cameraList: [AVCaptureDevice] = []
 
     func show() {
         if window == nil { build() }
@@ -231,7 +254,7 @@ final class CameraWindow: NSObject, NSWindowDelegate {
         if gesture.enabled {
             statusLabel.stringValue = "🖐 " + L.t(zh: "手势控制中 · 食指移光标 · 捏合点击/拖动", en: "Gesture control on · index moves cursor · pinch to click/drag")
         } else {
-            statusLabel.stringValue = "• \(camName)"
+            statusLabel.stringValue = camName.isEmpty ? "" : "• \(camName)"
         }
     }
 
@@ -245,10 +268,14 @@ final class CameraWindow: NSObject, NSWindowDelegate {
     @objc private func toggleHands(_ s: NSButton) { overlay?.showHands = (s.state == .on) }
     @objc private func toggleBody(_ s: NSButton) { overlay?.showBody = (s.state == .on) }
     @objc private func toggleGesture(_ s: NSButton) { gesture.enabled = (s.state == .on); refreshStatus() }
+    @objc private func cameraChanged(_ s: NSPopUpButton) {
+        let i = s.indexOfSelectedItem
+        if i >= 0, i < cameraList.count { tracker.use(cameraList[i]) }
+    }
     @objc private func done() { window?.close() }
 
     private func build() {
-        let W: CGFloat = 840, H: CGFloat = 560, barH: CGFloat = 48
+        let W: CGFloat = 900, H: CGFloat = 560, barH: CGFloat = 48
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: W, height: H),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = L.t(zh: "丝语 · 摄像头追踪", en: "Dontype · Camera Tracking")
@@ -274,21 +301,35 @@ final class CameraWindow: NSObject, NSWindowDelegate {
         previewHost.addSubview(ov)
         content.addSubview(previewHost)
 
-        // 底栏：状态 + 手势控制开关 + 三个显示开关 + 完成
+        // 底栏：摄像头选择 + 手势开关 + 状态 + 三个显示开关 + 完成
+        cameraList = CameraTracker.cameras()
+        let pop = NSPopUpButton(frame: NSRect(x: 14, y: 11, width: 210, height: 26), pullsDown: false)
+        for c in cameraList { pop.addItem(withTitle: c.localizedName) }
+        let prefer = UserDefaults.standard.string(forKey: "cameraDeviceID")
+        if let i = cameraList.firstIndex(where: { $0.uniqueID == prefer })
+            ?? cameraList.firstIndex(where: { $0.deviceType == .builtInWideAngleCamera }) {
+            pop.selectItem(at: i)
+        }
+        pop.target = self; pop.action = #selector(cameraChanged(_:))
+        cameraPopup = pop
+        content.addSubview(pop)
+
+        // 手势控制鼠标（默认关，开了才接管）
+        let g = NSButton(checkboxWithTitle: L.t(zh: "🖐 手势控制鼠标", en: "🖐 Gesture control"),
+                         target: self, action: #selector(toggleGesture(_:)))
+        g.state = .off; g.frame = NSRect(x: 234, y: 12, width: 150, height: 24)
+        content.addSubview(g)
+
         statusLabel = NSTextField(labelWithString: "…")
         statusLabel.font = .systemFont(ofSize: 12); statusLabel.textColor = .secondaryLabelColor
-        statusLabel.frame = NSRect(x: 14, y: 14, width: 318, height: 20)
+        statusLabel.lineBreakMode = .byTruncatingTail
+        statusLabel.frame = NSRect(x: 394, y: 14, width: 190, height: 20)
         content.addSubview(statusLabel)
 
         func chk(_ title: String, _ x: CGFloat, _ w: CGFloat, _ on: Bool, _ sel: Selector) -> NSButton {
             let b = NSButton(checkboxWithTitle: title, target: self, action: sel)
             b.state = on ? .on : .off; b.frame = NSRect(x: x, y: 12, width: w, height: 24); return b
         }
-        // 手势控制鼠标（默认关，开了才接管）
-        let g = NSButton(checkboxWithTitle: L.t(zh: "🖐 手势控制鼠标", en: "🖐 Gesture control"),
-                         target: self, action: #selector(toggleGesture(_:)))
-        g.state = .off; g.frame = NSRect(x: 340, y: 12, width: 150, height: 24)
-        content.addSubview(g)
         content.addSubview(chk(L.t(zh: "脸", en: "Face"), W - 290, 46, false, #selector(toggleFace(_:))))
         content.addSubview(chk(L.t(zh: "手", en: "Hands"), W - 240, 46, true, #selector(toggleHands(_:))))
         content.addSubview(chk(L.t(zh: "身体", en: "Body"), W - 190, 64, false, #selector(toggleBody(_:))))
