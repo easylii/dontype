@@ -1,6 +1,7 @@
 import Foundation
 import Speech
 import AVFoundation
+import CrashGuard
 
 /// 录音 + 语音识别，双后端：
 /// - whisper（首选）：录音存文件，结束后 whisper-cli 批式识别 —— 中英混说效果好
@@ -114,8 +115,7 @@ final class Dictation: NSObject {
             latest = ""
         }
 
-        tapInstalled = true
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
+        let tapBlock: (AVAudioPCMBuffer, AVAudioTime) -> Void = { [weak self] buffer, _ in
             guard let self else { return }
             switch self.backend {
             case .whisper: try? self.audioFile?.write(from: buffer)
@@ -130,6 +130,30 @@ final class Dictation: NSObject {
                 let level = min(1.0, rms * 18)
                 DispatchQueue.main.async { self.onLevel?(level) }
             }
+        }
+        // installTap 遇到坏格式（某些摄像头/采集卡）会抛 NSException 直接 SIGABRT；用异常捕获包住，
+        // 崩了就回退到「自动选麦」再装一次，绝不崩 App。
+        func installGuarded() -> Bool {
+            if let ex = cg_try({ input.installTap(onBus: 0, bufferSize: 1024, format: format, block: tapBlock) }) {
+                FileLog.write("✗ installTap 异常：\(ex.name.rawValue) \(ex.reason ?? "")")
+                return false
+            }
+            return true
+        }
+        tapInstalled = true
+        if !installGuarded() {
+            input.removeTap(onBus: 0)
+            guard !micUID.isEmpty, let fb = AudioDevices.pick(preferredUID: "") else {
+                tapInstalled = false; throw DictationError.unavailable
+            }
+            dev = fb.0; why = fb.1; sourceKind = fb.2
+            format = applyDevice(dev.id)
+            FileLog.write("麦克风(回退)：\(dev.name)（\(why)）")
+            if backend == .whisper {
+                try? FileManager.default.removeItem(atPath: cafPath)
+                audioFile = try AVAudioFile(forWriting: URL(fileURLWithPath: cafPath), settings: format.settings)
+            }
+            if !installGuarded() { tapInstalled = false; throw DictationError.unavailable }
         }
         engine.prepare()
         try engine.start()
