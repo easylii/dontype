@@ -73,23 +73,47 @@ final class CameraTracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     }
 }
 
+/// One-Euro 滤波器：手部追踪治抖的标准做法 —— 慢动作强平滑、快动作低延迟，不像固定低通那样要么抖要么拖。
+struct OneEuroFilter {
+    var minCutoff = 0.8, beta = 0.4, dCutoff = 1.0
+    private var xPrev: Double?, dxPrev = 0.0, tPrev = 0.0
+    private func alpha(_ cutoff: Double, _ dt: Double) -> Double {
+        let tau = 1.0 / (2 * .pi * cutoff); return 1.0 / (1.0 + tau / dt)
+    }
+    mutating func filter(_ x: Double, _ t: Double) -> Double {
+        guard let xp = xPrev else { xPrev = x; tPrev = t; return x }
+        let dt = max(1e-3, t - tPrev)
+        let dx = (x - xp) / dt
+        let aD = alpha(dCutoff, dt)
+        let edx = aD * dx + (1 - aD) * dxPrev
+        let aC = alpha(minCutoff + beta * abs(edx), dt)
+        let ex = aC * x + (1 - aC) * xp
+        xPrev = ex; dxPrev = edx; tPrev = t
+        return ex
+    }
+    mutating func reset() { xPrev = nil; dxPrev = 0 }
+}
+
 /// 手势控制鼠标（Phase 1）：食指指尖相对移动光标（隔空触控板）；拇指+食指捏合 = 按下/拖动/松开。
 /// 相对映射 + 低通平滑 + 死区 + 捏合滞回；只在「启用」时接管。需辅助功能权限（App 已有）。
 final class HandGestureController {
     var enabled = false { didSet { if enabled != oldValue { enabled ? begin() : end() } } }
     var onPinch: ((Bool) -> Void)?
-    var gain: CGFloat = (NSScreen.main?.frame.width ?? 1440) * 2.0   // 归一化位移 → 屏幕像素
+    var gain: CGFloat = (NSScreen.main?.frame.width ?? 1440) * 2.2   // 归一化位移 → 屏幕像素
 
-    private var smoothIndex: CGPoint?
+    private var filterX = OneEuroFilter()        // One-Euro 平滑食指位置，治抖
+    private var filterY = OneEuroFilter()
     private var lastIndex: CGPoint?
+    private var smoothRatio: Double = -1          // 捏合比例的低通
     private var pinching = false
-    private var cursor: CGPoint = .zero        // 屏幕坐标（左上原点）
+    private var pinchStreak = 0                   // 连续几帧想翻转 → 去抖
+    private var cursor: CGPoint = .zero           // 屏幕坐标（左上原点）
 
     private func begin() {
-        let m = NSEvent.mouseLocation          // 全局，左下原点
+        let m = NSEvent.mouseLocation
         let h = NSScreen.main?.frame.height ?? 900
-        cursor = CGPoint(x: m.x, y: h - m.y)   // → 左上原点
-        smoothIndex = nil; lastIndex = nil; pinching = false
+        cursor = CGPoint(x: m.x, y: h - m.y)
+        filterX.reset(); filterY.reset(); lastIndex = nil; smoothRatio = -1; pinching = false; pinchStreak = 0
     }
     private func end() {
         if pinching { post(.leftMouseUp); pinching = false; onPinch?(false) }
@@ -98,35 +122,40 @@ final class HandGestureController {
     func process(_ hands: [VNHumanHandPoseObservation]) {
         guard enabled else { return }
         guard let hand = hands.first,
-              let idx = try? hand.recognizedPoint(.indexTip), idx.confidence > 0.3,
-              let thumb = try? hand.recognizedPoint(.thumbTip), thumb.confidence > 0.3,
+              let idx = try? hand.recognizedPoint(.indexTip), idx.confidence > 0.5,
+              let thumb = try? hand.recognizedPoint(.thumbTip), thumb.confidence > 0.4,
               let wrist = try? hand.recognizedPoint(.wrist),
-              let mcp = try? hand.recognizedPoint(.middleMCP) else { lastIndex = nil; return }
-
-        // 低通平滑食指位置（归一化、左下原点）
-        let raw = idx.location
-        let s = smoothIndex.map { CGPoint(x: $0.x * 0.5 + raw.x * 0.5, y: $0.y * 0.5 + raw.y * 0.5) } ?? raw
-        smoothIndex = s
+              let mcp = try? hand.recognizedPoint(.middleMCP) else {
+            filterX.reset(); filterY.reset(); lastIndex = nil   // 手丢了：复位，避免重新出现时跳
+            return
+        }
+        let t = ProcessInfo.processInfo.systemUptime
+        let s = CGPoint(x: CGFloat(filterX.filter(Double(idx.location.x), t)),
+                        y: CGFloat(filterY.filter(Double(idx.location.y), t)))
         defer { lastIndex = s }
 
-        // 捏合：拇指-食指距离 / 手掌尺度（缩放无关），带滞回
-        let span = max(0.0001, hypot(wrist.location.x - mcp.location.x, wrist.location.y - mcp.location.y))
-        let ratio = hypot(thumb.location.x - raw.x, thumb.location.y - raw.y) / span
-        let nowPinch = pinching ? (ratio < 0.7) : (ratio < 0.45)
+        // 捏合：拇指-食指距离 / 手掌尺度（缩放无关）→ 低通 → 滞回 + 连续 2 帧去抖
+        let span = Double(max(0.0001, hypot(wrist.location.x - mcp.location.x, wrist.location.y - mcp.location.y)))
+        let rawRatio = Double(hypot(thumb.location.x - idx.location.x, thumb.location.y - idx.location.y)) / span
+        smoothRatio = smoothRatio < 0 ? rawRatio : (smoothRatio * 0.6 + rawRatio * 0.4)
+        let want = pinching ? (smoothRatio < 0.75) : (smoothRatio < 0.5)
+        if want != pinching {
+            pinchStreak += 1
+            if pinchStreak >= 2 {
+                pinching = want; pinchStreak = 0
+                post(pinching ? .leftMouseDown : .leftMouseUp); onPinch?(pinching)
+            }
+        } else { pinchStreak = 0 }
 
-        guard let last = lastIndex else { return }   // 第一帧只记位置不动
+        guard let last = lastIndex else { return }
         var dx = s.x - last.x, dy = s.y - last.y
-        if abs(dx) < 0.003 { dx = 0 }                 // 死区去抖
-        if abs(dy) < 0.003 { dy = 0 }
-        // 前置摄像头镜像：手右→光标右(翻 X)；图像 y 向上→屏幕 y 向下(翻 Y)
+        if abs(dx) < 0.0015 { dx = 0 }
+        if abs(dy) < 0.0015 { dy = 0 }
+        let g = gain * (pinching ? 0.35 : 1.0)       // 捏合时降速，点击更稳、少误拖
         if let scr = NSScreen.main?.frame {
-            cursor.x = min(max(0, cursor.x - dx * gain), scr.width - 1)
-            cursor.y = min(max(0, cursor.y - dy * gain), scr.height - 1)
+            cursor.x = min(max(0, cursor.x - dx * g), scr.width - 1)
+            cursor.y = min(max(0, cursor.y - dy * g), scr.height - 1)
         }
-
-        if nowPinch && !pinching { post(.leftMouseDown); onPinch?(true) }
-        if !nowPinch && pinching { post(.leftMouseUp); onPinch?(false) }
-        pinching = nowPinch
         post(pinching ? .leftMouseDragged : .mouseMoved)
     }
 
@@ -196,6 +225,10 @@ final class CameraWindow: NSObject, NSWindowDelegate {
         let pl = AVCaptureVideoPreviewLayer(session: tracker.session)
         pl.videoGravity = .resizeAspect
         pl.frame = previewHost.bounds
+        if let conn = pl.connection, conn.isVideoMirroringSupported {   // 自拍镜像（layerPointConverted 会跟着镜像，叠加层仍对齐）
+            conn.automaticallyAdjustsVideoMirroring = false
+            conn.isVideoMirrored = true
+        }
         previewHost.layer?.addSublayer(pl)
         previewLayer = pl
 
