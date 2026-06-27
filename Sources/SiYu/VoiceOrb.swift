@@ -56,8 +56,8 @@ final class VoiceOrb {
         bg.bodyRect = body
         lab.frame = NSRect(x: body.minX + padX, y: body.minY + padY, width: textW, height: textH)
 
-        // 位置：球的右上方（再往左收 20px）
-        let bodyCenterX = orbP.frame.midX + 122
+        // 位置：球的右上方
+        let bodyCenterX = orbP.frame.midX + 100
         let startX = bodyCenterX - (leftPad + pillW / 2)
         let startY = orbP.frame.midY + 6
         bp.setFrameOrigin(NSPoint(x: startX, y: startY))
