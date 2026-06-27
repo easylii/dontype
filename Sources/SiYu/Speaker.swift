@@ -15,6 +15,8 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
 
     private var pending = 0
     private var finished = true
+    private var streamOpen = false                 // 流式：还可能有后续句子，别提前 onFinish
+    private var streamVoice: AVSpeechSynthesisVoice? // 整段流用同一个嗓音，避免逐句切换
 
     override init() {
         super.init()
@@ -28,8 +30,32 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
         u.rate = Float(max(0, min(1, rate)))
         u.voice = Speaker.pickVoice(text: clean, preferredID: voiceID, preferredLang: lang)
         finished = false
+        streamOpen = false
         pending = 1
         synth.speak(u)
+    }
+
+    // MARK: 流式朗读（边生成边念）—— 开一段 → 逐句 enqueue → endStream 后全部念完才 onFinish
+
+    func beginStream() {
+        synth.stopSpeaking(at: .immediate)
+        finished = false; pending = 0; streamOpen = true; streamVoice = nil
+    }
+
+    func enqueue(_ text: String, voiceID: String, lang: String, rate: Double) {
+        let clean = Speaker.cleanForSpeech(text)
+        guard !clean.isEmpty else { return }
+        if streamVoice == nil { streamVoice = Speaker.pickVoice(text: clean, preferredID: voiceID, preferredLang: lang) }
+        let u = AVSpeechUtterance(string: clean)
+        u.rate = Float(max(0, min(1, rate)))
+        u.voice = streamVoice
+        pending += 1
+        synth.speak(u)
+    }
+
+    func endStream() {
+        streamOpen = false
+        if pending <= 0 { fireFinish() }            // 没有待念的（空回复）→ 直接结束
     }
 
     /// 朗读前清掉会让合成器「乱读」或啰嗦的 Markdown 标记，只留可读文字。
@@ -52,6 +78,7 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     func stop() {
+        streamOpen = false
         synth.stopSpeaking(at: .immediate)
         fireFinish()
     }
@@ -66,7 +93,7 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
 
     func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         pending -= 1
-        if pending <= 0 { fireFinish() }
+        if pending <= 0 && !streamOpen { fireFinish() }   // 流式期间等 endStream 才收尾
     }
     func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         fireFinish()

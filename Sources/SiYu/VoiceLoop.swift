@@ -25,10 +25,12 @@ final class VoiceLoop: NSObject {
     init(workdir: String) {
         assistant = Assistant(workdir: workdir)
         super.init()
-        assistant.onReply = { [weak self] text in self?.startSpeaking(text) }
-        assistant.onTurnEnd = { [weak self] in            // 没出文本（纯工具/空）→ 回待命，等再按
-            guard let self, self.active, self.state == .thinking else { return }
-            self.state = .idle
+        assistant.onSentence = { [weak self] s in self?.speakSentence(s) }   // 流式：一句到就念
+        assistant.onReply = { text in FileLog.write("🤖 回复：\(text.prefix(80))") }   // 仅日志，朗读走 onSentence
+        assistant.onTurnEnd = { [weak self] in
+            guard let self, self.active else { return }
+            if self.state == .speaking { self.speaker.endStream() }   // 最后一句念完 → onFinish → 待命
+            else if self.state == .thinking { self.state = .idle }    // 没出声（纯工具/空）→ 待命
         }
         assistant.onError = { [weak self] m in
             FileLog.write("🤖 助手出错：\(m)")
@@ -49,6 +51,7 @@ final class VoiceLoop: NSObject {
     func open() {
         guard !active else { return }
         active = true; config = Config.load(); state = .idle
+        assistant.start()        // 预热 CLI 进程，藏掉首轮冷启动
     }
 
     /// 遥控器侧键（一键对讲）：待命/首次 → 开始说；正在说 → 停止并发送；正在念 → 打断、直接说。
@@ -58,7 +61,7 @@ final class VoiceLoop: NSObject {
         case .thinking:  break                              // 处理中 → 忽略
         case .speaking:  speaker.stop(); startListening()   // 打断回复 → 直接说
         case .idle:
-            if !active { active = true; config = Config.load() }
+            if !active { active = true; config = Config.load(); assistant.start() }
             startListening()                                // 开始说
         }
     }
@@ -69,7 +72,7 @@ final class VoiceLoop: NSObject {
         case .listening, .thinking: break
         case .speaking: speaker.stop(); startListening()
         case .idle:
-            if !active { active = true; config = Config.load() }
+            if !active { active = true; config = Config.load(); assistant.start() }
             startListening()
         }
     }
@@ -130,10 +133,10 @@ final class VoiceLoop: NSObject {
 
     // MARK: 说
 
-    private func startSpeaking(_ text: String) {
+    /// 流式：每来一句就接着念（第一句到了才切到 speaking 并开流），念完最后一句靠 onTurnEnd→endStream 收尾。
+    private func speakSentence(_ s: String) {
         guard active else { return }
-        state = .speaking
-        speaker.speak(text, voiceID: config.readVoice, lang: config.readLang, rate: config.readRate)
-        // speaker.onFinish → startListening()
+        if state != .speaking { state = .speaking; speaker.beginStream() }
+        speaker.enqueue(s, voiceID: config.readVoice, lang: config.readLang, rate: config.readRate)
     }
 }

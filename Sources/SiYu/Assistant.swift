@@ -7,7 +7,9 @@ import Foundation
 /// 范围限定在 `--add-dir <workdir>`。后续阶段②再换成「default + MCP 权限工具」做副作用确认。
 /// ⚠️ 走云端（你自己的 Claude 账号），与本地私密内核分开，单独 opt-in。
 final class Assistant {
-    /// 助手一回合的最终文本（用于显示 + 朗读）。
+    /// 流式：每凑够一句就回调（边生成边朗读，ChatGPT 式低延迟）。
+    var onSentence: ((String) -> Void)?
+    /// 助手一回合的最终文本（用于显示 / 日志）。
     var onReply: ((String) -> Void)?
     /// 回合中用到的工具（名字, 简述）→ 动作日志。
     var onToolUse: ((String, String) -> Void)?
@@ -20,6 +22,7 @@ final class Assistant {
     private var stdinHandle: FileHandle?
     private var buffer = Data()
     private var turnText = ""
+    private var sentenceBuf = ""        // 流式增量缓冲：凑够一句就 onSentence
     private let workdir: String
 
     init(workdir: String) { self.workdir = workdir }
@@ -32,7 +35,8 @@ final class Assistant {
         p.executableURL = URL(fileURLWithPath: cli)
         p.currentDirectoryURL = URL(fileURLWithPath: workdir)
         p.arguments = ["-p", "--verbose",
-                       "--model", "sonnet",                  // 对话用 Sonnet：比默认快
+                       "--model", "haiku",                   // 对话用 Haiku：快问快答最快
+                       "--include-partial-messages",         // 流式增量 → 边出字边按句朗读
                        // 当成快问快答的语音助手：直接作答、别探索读文件（省掉工具往返 = 思考更快），纯文本
                        "--append-system-prompt",
                        "You are a fast voice assistant. Reply concisely in 1–2 short sentences, in the same language the user spoke. Answer directly from what you already know — do NOT read files, search, run commands, or use any tools unless the user explicitly asks. Plain text only, no markdown.",
@@ -66,7 +70,7 @@ final class Assistant {
         guard !t.isEmpty else { return }
         if !running { start() }
         guard let h = stdinHandle else { onError?("会话未就绪"); return }
-        turnText = ""
+        turnText = ""; sentenceBuf = ""
         let msg: [String: Any] = ["type": "user",
                                   "message": ["role": "user", "content": [["type": "text", "text": t]]]]
         guard var line = try? JSONSerialization.data(withJSONObject: msg) else { return }
@@ -89,6 +93,12 @@ final class Assistant {
                   let o = (try? JSONSerialization.jsonObject(with: lineData)) as? [String: Any],
                   let type = o["type"] as? String else { continue }
             switch type {
+            case "stream_event":   // 流式增量：累加文本 delta → 凑够一句就朗读
+                guard let ev = o["event"] as? [String: Any], (ev["type"] as? String) == "content_block_delta",
+                      let delta = ev["delta"] as? [String: Any], (delta["type"] as? String) == "text_delta",
+                      let t = delta["text"] as? String else { break }
+                sentenceBuf += t
+                flushSentences(force: false)
             case "assistant":
                 guard let msg = o["message"] as? [String: Any],
                       let content = msg["content"] as? [[String: Any]] else { break }
@@ -100,6 +110,7 @@ final class Assistant {
                     }
                 }
             case "result":
+                flushSentences(force: true)    // 把最后不带句号的残句也念出来
                 let final = (o["result"] as? String) ?? turnText
                 FileLog.write("🤖 回复(\(final.count)字): \(final.prefix(60))")
                 if !final.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { onReply?(final) }
@@ -108,6 +119,22 @@ final class Assistant {
                 if (o["subtype"] as? String) == "error", let m = o["message"] as? String { onError?(m) }
             default: break
             }
+        }
+    }
+
+    /// 从增量缓冲切出完整句子逐句回调；force=true 把最后不带句末标点的残句也吐出。
+    private func flushSentences(force: Bool) {
+        let enders: Set<Character> = ["。", "！", "？", "!", "?", "；", ";", ".", "\n"]
+        while let idx = sentenceBuf.firstIndex(where: { enders.contains($0) }) {
+            let upTo = sentenceBuf.index(after: idx)
+            let s = sentenceBuf[..<upTo].trimmingCharacters(in: .whitespacesAndNewlines)
+            sentenceBuf = String(sentenceBuf[upTo...])
+            if !s.isEmpty { onSentence?(s) }
+        }
+        if force {
+            let rest = sentenceBuf.trimmingCharacters(in: .whitespacesAndNewlines)
+            sentenceBuf = ""
+            if !rest.isEmpty { onSentence?(rest) }
         }
     }
 
