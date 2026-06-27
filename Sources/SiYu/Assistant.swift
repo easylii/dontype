@@ -31,11 +31,13 @@ final class Assistant {
     func start() {
         guard !running else { return }
         guard let cli = Cleaner.claudePath else { onError?("找不到 claude CLI（装 Claude Code 后重试）"); return }
+        let chosen = Config.load().assistantModel
+        let model = ["haiku", "sonnet", "opus"].contains(chosen) ? chosen : "haiku"   // 用户选的对话模型
         let p = Process()
         p.executableURL = URL(fileURLWithPath: cli)
         p.currentDirectoryURL = URL(fileURLWithPath: workdir)
         p.arguments = ["-p", "--verbose",
-                       "--model", "haiku",                   // 对话用 Haiku：快问快答最快
+                       "--model", model,                     // haiku 快 / sonnet 均衡 / opus 强
                        "--include-partial-messages",         // 流式增量 → 边出字边按句朗读
                        // 当成快问快答的语音助手：直接作答、别探索读文件（省掉工具往返 = 思考更快），纯文本
                        "--append-system-prompt",

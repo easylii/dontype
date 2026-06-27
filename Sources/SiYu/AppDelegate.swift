@@ -630,6 +630,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         m.addItem(hintItem(L.t(zh: "双击 \(Trigger.from(config.assistantKey).label) 进入对话 · 张嘴就说、停下自动接 · 单击打断 · Esc 关闭",
                                en: "Double-tap \(Trigger.from(config.assistantKey).label) to enter · just talk, pause to send · tap to interrupt · Esc to close")))
         m.addItem(hintItem(L.t(zh: "连续对话 · 在线 · 走 Claude Code · plan 只读", en: "Continuous · online · via Claude Code · plan read-only")))
+        m.addItem(.separator())
+        m.addItem(hintItem(L.t(zh: "对话模型", en: "Model")))
+        for (id, name) in [("haiku", L.t(zh: "Haiku · 最快", en: "Haiku · fastest")),
+                           ("sonnet", L.t(zh: "Sonnet · 均衡", en: "Sonnet · balanced")),
+                           ("opus", L.t(zh: "Opus · 最强", en: "Opus · strongest"))] {
+            let it = NSMenuItem(title: name, action: #selector(setAssistantModel(_:)), keyEquivalent: "")
+            it.target = self
+            it.representedObject = id
+            it.state = (config.assistantModel == id) ? .on : .off
+            m.addItem(it)
+        }
+    }
+
+    @objc private func setAssistantModel(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        config.assistantModel = id
+        persist(["assistantModel": id])
+        voiceLoop.resetAssistant()   // 下次开口用新模型重启会话
+        rebuildMenu()
     }
 
     /// 小节标题：禁用、小号半粗次要色，读起来像分区标签而不是不可用的选项

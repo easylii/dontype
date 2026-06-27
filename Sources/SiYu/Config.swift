@@ -22,6 +22,7 @@ struct Config {
     var recognitionLang: String // whisper 识别语言码：zh / en / ja / ko / auto …
     var readKey: String      // 朗读选中文字的触发键，默认 rightCommand（和说话的 control 分开）
     var assistantKey: String // 语音助手触发键（双击 = 对讲机：开/说/停发送），默认 rightOption
+    var assistantModel: String // 语音助手对话模型：haiku（快）/ sonnet（均衡）/ opus（强），默认 haiku
     var readLang: String     // 朗读主语言偏好：auto/zh/en/ja/ko/es/fr；非 auto 时该语言在文中占比够就整篇用它读
     var readVoice: String    // AVSpeechSynthesisVoice.identifier；空 = 按文字语言自动挑
     var readRate: Double     // 朗读语速 0…1，默认 0.5（AVSpeechUtteranceDefaultSpeechRate）
@@ -51,6 +52,7 @@ struct Config {
             recognitionLang: "auto",   // 自动检测：对所有主推语言开箱即用
             readKey: "rightCommand",
             assistantKey: "leftCommand",
+            assistantModel: "haiku",
             readLang: "auto",
             readVoice: "",
             readRate: 0.5,
@@ -77,6 +79,7 @@ struct Config {
             if let v = json["recognitionLang"] as? String, !v.isEmpty { c.recognitionLang = v }
             if let v = json["readKey"] as? String, !v.isEmpty { c.readKey = v }
             if let v = json["assistantKey"] as? String, !v.isEmpty { c.assistantKey = v }
+            if let v = json["assistantModel"] as? String, !v.isEmpty { c.assistantModel = v }
             if let v = json["readLang"] as? String, !v.isEmpty { c.readLang = v }
             if let v = json["readVoice"] as? String { c.readVoice = v }
             if let v = json["readRate"] as? Double { c.readRate = v }

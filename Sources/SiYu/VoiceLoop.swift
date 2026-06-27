@@ -102,6 +102,9 @@ final class VoiceLoop: NSObject {
         state = .idle
     }
 
+    /// 换了对话模型后调用：停掉当前 CLI 会话，下次开口会用新模型重启。
+    func resetAssistant() { assistant.stop() }
+
     // MARK: 听
 
     private func startListening() {
