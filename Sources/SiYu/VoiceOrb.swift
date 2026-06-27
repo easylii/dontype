@@ -5,16 +5,75 @@ final class VoiceOrb {
     var onStop: (() -> Void)?
     private var panel: NSPanel?
     private var orb: OrbView?
+    private var bubblePanel: NSPanel?
+    private var bubbleLabel: NSTextField?
+    private var bubbleSeq = 0
 
     func show() {
         if panel == nil { build() }
         position()
         panel?.orderFrontRegardless()
     }
-    func hide() { panel?.orderOut(nil) }
+    func hide() { panel?.orderOut(nil); bubblePanel?.orderOut(nil) }
 
-    func setState(_ s: VoiceLoop.State) { orb?.setState(s) }
+    func setState(_ s: VoiceLoop.State) {
+        orb?.setState(s)
+        switch s {                                  // 状态变化时弹个半透明泡泡（让你在它没出声时也知道在干嘛）
+        case .listening: bubble(L.t(zh: "在听你说…", en: "Listening…"))
+        case .thinking:  bubble(L.t(zh: "在想…",   en: "Thinking…"))
+        case .speaking:  bubble(L.t(zh: "在说…",   en: "Speaking…"))
+        case .idle:      break
+        }
+    }
     func setLevel(_ lv: Float) { orb?.setLevel(lv) }
+
+    /// 半透明状态泡泡：出现在球上方，向上飘一小段 + 渐隐，约 2.4s 自动消失（复用同一个面板）。
+    func bubble(_ text: String) {
+        if bubblePanel == nil { buildBubble() }
+        guard let bp = bubblePanel, let lab = bubbleLabel, let orbP = panel else { return }
+        lab.stringValue = "  \(text)  "
+        let startX = orbP.frame.midX - bp.frame.width / 2
+        let startY = orbP.frame.midY + 46
+        bp.setFrameOrigin(NSPoint(x: startX, y: startY))
+        bp.alphaValue = 0.95
+        bp.orderFrontRegardless()
+        bubbleSeq += 1
+        let seq = bubbleSeq
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 2.4
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            bp.animator().setFrameOrigin(NSPoint(x: startX, y: startY + 46))
+            bp.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            if self?.bubbleSeq == seq { self?.bubblePanel?.orderOut(nil) }   // 只让最新那次收尾隐藏
+        })
+    }
+
+    private func buildBubble() {
+        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 180, height: 30),
+                        styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        p.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
+        p.isOpaque = false; p.backgroundColor = .clear; p.hasShadow = false
+        p.isFloatingPanel = true; p.hidesOnDeactivate = false
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        let host = NSView(frame: NSRect(x: 0, y: 0, width: 180, height: 30))
+        let lab = NSTextField(labelWithString: "")
+        lab.font = .systemFont(ofSize: 12, weight: .medium)
+        lab.textColor = .white; lab.alignment = .center
+        lab.isBezeled = false; lab.isEditable = false; lab.drawsBackground = false
+        lab.wantsLayer = true
+        lab.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.5).cgColor
+        lab.layer?.cornerRadius = 12; lab.layer?.masksToBounds = true
+        lab.translatesAutoresizingMaskIntoConstraints = false
+        host.addSubview(lab)
+        NSLayoutConstraint.activate([
+            lab.centerXAnchor.constraint(equalTo: host.centerXAnchor),
+            lab.centerYAnchor.constraint(equalTo: host.centerYAnchor),
+            lab.heightAnchor.constraint(equalToConstant: 24),
+        ])
+        p.contentView = host
+        bubblePanel = p; bubbleLabel = lab
+    }
 
     private func build() {
         let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 140, height: 140),

@@ -618,9 +618,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         toggle.target = self
         m.addItem(toggle)
         m.addItem(.separator())
-        m.addItem(hintItem(L.t(zh: "双击 \(Trigger.from(config.assistantKey).label) 激活 · 单击 说/停发送/继续 · Esc 关闭",
-                               en: "Double-tap \(Trigger.from(config.assistantKey).label) to start · tap to talk/send · Esc to close")))
-        m.addItem(hintItem(L.t(zh: "在线 · 走 Claude Code · plan 只读", en: "Online · via Claude Code · plan read-only")))
+        m.addItem(hintItem(L.t(zh: "双击 \(Trigger.from(config.assistantKey).label) 进入对话 · 张嘴就说、停下自动接 · 单击打断 · Esc 关闭",
+                               en: "Double-tap \(Trigger.from(config.assistantKey).label) to enter · just talk, pause to send · tap to interrupt · Esc to close")))
+        m.addItem(hintItem(L.t(zh: "连续对话 · 在线 · 走 Claude Code · plan 只读", en: "Continuous · online · via Claude Code · plan read-only")))
     }
 
     /// 小节标题：禁用、小号半粗次要色，读起来像分区标签而不是不可用的选项

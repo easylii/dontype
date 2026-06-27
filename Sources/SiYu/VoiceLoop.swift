@@ -15,12 +15,14 @@ final class VoiceLoop: NSObject {
     private(set) var active = false
     private(set) var state: State = .idle { didSet { onState?(state) } }
 
-    // 手动收尾：说完按遥控器 OK 才结束本轮（不再自动判停，避开底噪/停顿误判）。
+    // 连续对话：说过话后静音够久就自动判停（不用按键）；说回复时不听（按键打断）。
     private var heardSpeech = false
     private var listenStartAt: TimeInterval = 0
+    private var lastVoiceAt: TimeInterval = 0   // 最近一次「在说话」的时刻 → 算静音时长
     private var vadTimer: Timer?
-    private let onsetLevel: Float = 0.13       // 高于此算「在说话」（点亮状态球 + 防空轮）
-    private let maxTurnSec: TimeInterval = 45  // 单轮硬上限（忘按 OK 的兜底）
+    private let onsetLevel: Float = 0.13        // 高于此算「在说话」（点亮状态球 + 防空轮）
+    private let silenceWindow: TimeInterval = 1.5 // 说过话后静音超过这么久 = 说完了
+    private let maxTurnSec: TimeInterval = 45   // 单轮硬上限
 
     init(workdir: String) {
         assistant = Assistant(workdir: workdir)
@@ -36,14 +38,20 @@ final class VoiceLoop: NSObject {
             FileLog.write("🤖 助手出错：\(m)")
             if let self, self.active { self.state = .idle }
         }
-        speaker.onFinish = { [weak self] in                // 回复念完 → 回待命，等你再按右侧键说
-            guard let self, self.active else { return }
-            self.state = .idle
+        speaker.onFinish = { [weak self] in                // 连续：回复念完 → 稍等避开尾音 → 自动接着听
+            guard let self, self.active, self.state == .speaking else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                guard let self, self.active, self.state == .speaking else { return }
+                self.startListening()
+            }
         }
         dictation.onLevel = { [weak self] lv in
             guard let self else { return }
             self.onLevel?(lv)
-            if self.state == .listening, lv > self.onsetLevel { self.heardSpeech = true }
+            if self.state == .listening, lv > self.onsetLevel {
+                self.heardSpeech = true
+                self.lastVoiceAt = ProcessInfo.processInfo.systemUptime
+            }
         }
     }
 
@@ -54,34 +62,34 @@ final class VoiceLoop: NSObject {
         assistant.start()        // 预热 CLI 进程，藏掉首轮冷启动
     }
 
-    /// 遥控器侧键（一键对讲）：待命/首次 → 开始说；正在说 → 停止并发送；正在念 → 打断、直接说。
+    /// 连续对话入口/打断键（遥控器/键盘）：待命 → 进入并开始听；正在听 → 立刻发送；正在念 → 打断（之后自动接着听）。
     func talk() {
         switch state {
-        case .listening: endTurn()                          // 说完 → 停 + 转写发送
+        case .listening: endTurn()                          // 立刻发送（不等静音）
         case .thinking:  break                              // 处理中 → 忽略
-        case .speaking:  speaker.stop(); startListening()   // 打断回复 → 直接说
+        case .speaking:  speaker.stop()                     // 打断 → onFinish 自动接着听
         case .idle:
             if !active { active = true; config = Config.load(); assistant.start() }
-            startListening()                                // 开始说
+            startListening()                                // 进入对话、开始听
         }
     }
 
-    /// 键盘「双击」= 开始说（待命/首次 → 录音；正在念 → 打断后直接说；已在说则忽略）。
+    /// 键盘「双击」= 进入对话 / 打断（与 talk 同义；待命→开始听，正在念→打断）。
     func beginTalk() {
         switch state {
         case .listening, .thinking: break
-        case .speaking: speaker.stop(); startListening()
+        case .speaking: speaker.stop()                      // 打断 → 自动接着听
         case .idle:
             if !active { active = true; config = Config.load(); assistant.start() }
             startListening()
         }
     }
 
-    /// 键盘「单击」= 停止说（正在说 → 转写发送；正在念 → 跳过回复回待命；其它忽略）。
+    /// 键盘「单击」= 立刻发送 / 打断（正在听→发送；正在念→打断后自动接着听）。
     func endTalk() {
         switch state {
         case .listening: endTurn()
-        case .speaking:  speaker.stop(); state = .idle
+        case .speaking:  speaker.stop()
         default:         break
         }
     }
@@ -101,6 +109,7 @@ final class VoiceLoop: NSObject {
         if speaker.isSpeaking { speaker.stop() }
         heardSpeech = false
         listenStartAt = ProcessInfo.processInfo.systemUptime
+        lastVoiceAt = listenStartAt
         dictation.requestPermission { [weak self] ok in
             guard let self, self.active else { return }
             guard ok else { FileLog.write("🤖 缺麦克风权限，停止语音环"); self.stop(); return }
@@ -112,9 +121,11 @@ final class VoiceLoop: NSObject {
         }
     }
 
-    private func tickVAD() {   // 只做硬上限兜底；正常靠按 OK 收尾
+    private func tickVAD() {
         guard active, state == .listening else { return }
-        if heardSpeech, ProcessInfo.processInfo.systemUptime - listenStartAt > maxTurnSec { endTurn() }
+        let now = ProcessInfo.processInfo.systemUptime
+        if heardSpeech, now - listenStartAt > maxTurnSec { endTurn(); return }   // 硬上限兜底
+        if heardSpeech, now - lastVoiceAt > silenceWindow { endTurn() }          // 静音判停 → 自动说完
     }
 
     // MARK: 想
