@@ -6,6 +6,7 @@ final class VoiceOrb {
     private var panel: NSPanel?
     private var orb: OrbView?
     private var bubblePanel: NSPanel?
+    private var bubbleBG: NSView?
     private var bubbleLabel: NSTextField?
     private var bubbleSeq = 0
 
@@ -27,13 +28,32 @@ final class VoiceOrb {
     }
     func setLevel(_ lv: Float) { orb?.setLevel(lv) }
 
-    /// 半透明状态泡泡：出现在球上方，向上飘一小段 + 渐隐，约 2.4s 自动消失（复用同一个面板）。
+    /// 半透明状态泡泡：球的右上方，大字、最多 3 行自动换行，向上飘一小段 + 渐隐，约 2.4s 消失（复用面板）。
     func bubble(_ text: String) {
         if bubblePanel == nil { buildBubble() }
-        guard let bp = bubblePanel, let lab = bubbleLabel, let orbP = panel else { return }
-        lab.stringValue = "  \(text)  "
-        let startX = orbP.frame.midX - bp.frame.width / 2
-        let startY = orbP.frame.midY + 46
+        guard let bp = bubblePanel, let pill = bubbleBG, let lab = bubbleLabel, let orbP = panel else { return }
+        lab.stringValue = text
+
+        // 按内容算大小：固定一个偏大的宽度，高度随 1–3 行增长
+        let padX: CGFloat = 18, padY: CGFloat = 14, margin: CGFloat = 18
+        let pillW: CGFloat = 230
+        let textW = pillW - padX * 2
+        let bound = (text as NSString).boundingRect(
+            with: NSSize(width: textW, height: 200),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: lab.font as Any])
+        let textH = min(ceil(bound.height), lineHeightCap)          // 封顶 3 行
+        let pillH = max(textH + padY * 2, 44)
+        let panelW = pillW + margin * 2, panelH = pillH + margin * 2
+
+        bp.setContentSize(NSSize(width: panelW, height: panelH))
+        pill.frame = NSRect(x: margin, y: margin, width: pillW, height: pillH)
+        lab.frame = NSRect(x: padX, y: padY, width: textW, height: textH)
+
+        // 位置：球的右上方（往右挪）
+        let centerX = orbP.frame.midX + 92
+        let startX = centerX - panelW / 2
+        let startY = orbP.frame.midY + 8
         bp.setFrameOrigin(NSPoint(x: startX, y: startY))
         bp.alphaValue = 0.95
         bp.orderFrontRegardless()
@@ -49,30 +69,30 @@ final class VoiceOrb {
         })
     }
 
+    /// 3 行文字的高度上限（按泡泡字号估算）。
+    private var lineHeightCap: CGFloat { ceil((NSFont.systemFont(ofSize: 16, weight: .medium).boundingRectForFont.height) * 3) + 6 }
+
     private func buildBubble() {
-        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 180, height: 30),
+        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 266, height: 120),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         p.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
         p.isOpaque = false; p.backgroundColor = .clear; p.hasShadow = false
         p.isFloatingPanel = true; p.hidesOnDeactivate = false
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        let host = NSView(frame: NSRect(x: 0, y: 0, width: 180, height: 30))
-        let lab = NSTextField(labelWithString: "")
-        lab.font = .systemFont(ofSize: 12, weight: .medium)
+        let host = NSView(frame: NSRect(x: 0, y: 0, width: 266, height: 120))
+        let pill = NSView()
+        pill.wantsLayer = true
+        pill.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.6).cgColor
+        pill.layer?.cornerRadius = 16; pill.layer?.masksToBounds = true
+        host.addSubview(pill)
+        let lab = NSTextField(wrappingLabelWithString: "")
+        lab.font = .systemFont(ofSize: 16, weight: .medium)
         lab.textColor = .white; lab.alignment = .center
+        lab.maximumNumberOfLines = 3
         lab.isBezeled = false; lab.isEditable = false; lab.drawsBackground = false
-        lab.wantsLayer = true
-        lab.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.5).cgColor
-        lab.layer?.cornerRadius = 12; lab.layer?.masksToBounds = true
-        lab.translatesAutoresizingMaskIntoConstraints = false
-        host.addSubview(lab)
-        NSLayoutConstraint.activate([
-            lab.centerXAnchor.constraint(equalTo: host.centerXAnchor),
-            lab.centerYAnchor.constraint(equalTo: host.centerYAnchor),
-            lab.heightAnchor.constraint(equalToConstant: 24),
-        ])
+        pill.addSubview(lab)
         p.contentView = host
-        bubblePanel = p; bubbleLabel = lab
+        bubblePanel = p; bubbleBG = pill; bubbleLabel = lab
     }
 
     private func build() {
