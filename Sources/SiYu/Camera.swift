@@ -229,6 +229,10 @@ final class HandGestureController {
 final class CameraWindow: NSObject, NSWindowDelegate {
     private let tracker = CameraTracker()
     private let gesture = HandGestureController()
+    private let recognizer = GestureRecognizer()
+    private lazy var trainer = GestureTrainerWindow(library: recognizer.library)
+    private var recording: (name: String, action: GestureAction, buf: [[Double]])?
+    private var recognizedName: String?
     private var window: NSWindow?
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var overlay: TrackingOverlayView?
@@ -241,18 +245,38 @@ final class CameraWindow: NSObject, NSWindowDelegate {
         if window == nil { build() }
         tracker.onStatus = { [weak self] s in self?.camName = s; self?.refreshStatus() }
         tracker.onResults = { [weak self] r in
-            self?.overlay?.update(r)
-            self?.gesture.process(r.hands)
+            guard let self else { return }
+            self.overlay?.update(r)
+            self.gesture.process(r.hands)              // 食指移光标 + 捏合
+            if self.recording != nil {                 // 训练中：抓特征样本
+                if let h = r.hands.first, let f = GestureLibrary.feature(h) { self.recording?.buf.append(f) }
+                if let rec = self.recording, rec.buf.count >= 24 {   // 约 0.8s @30fps
+                    self.recognizer.library.addSamples(name: rec.name, action: rec.action, features: rec.buf)
+                    self.recording = nil
+                    self.statusLabel.stringValue = "✓ " + L.t(zh: "已学：\(rec.name)（+\(rec.buf.count)）", en: "Learned \(rec.name) (+\(rec.buf.count))")
+                    self.trainer.refresh()
+                }
+            } else {
+                self.recognizer.process(r.hands)       // 识别自定义手势 + 触发动作
+            }
         }
         gesture.onPinch = { [weak self] _ in self?.refreshStatus() }
+        recognizer.onName = { [weak self] n in self?.recognizedName = n; self?.refreshStatus() }
+        trainer.onStartRecord = { [weak self] name, action in
+            self?.recording = (name, action, [])
+            self?.statusLabel.stringValue = "● " + L.t(zh: "录制「\(name)」… 对着摄像头保持手势", en: "Recording “\(name)”… hold the pose")
+        }
         tracker.start()
         NSApp.activate(ignoringOtherApps: true)
         window?.center(); window?.makeKeyAndOrderFront(nil)
     }
 
     private func refreshStatus() {
-        if gesture.enabled {
-            statusLabel.stringValue = "🖐 " + L.t(zh: "手势控制中 · 食指移光标 · 捏合点击/拖动", en: "Gesture control on · index moves cursor · pinch to click/drag")
+        if recording != nil { return }   // 录制中的文案由别处设，别覆盖
+        if recognizer.enabled, let n = recognizedName {
+            statusLabel.stringValue = "✋ " + L.t(zh: "识别到：\(n)", en: "Gesture: \(n)")
+        } else if gesture.enabled {
+            statusLabel.stringValue = "🖐 " + L.t(zh: "控制中 · 食指移光标 · 捏合点击", en: "Cursor on · index moves · pinch clicks")
         } else {
             statusLabel.stringValue = camName.isEmpty ? "" : "• \(camName)"
         }
@@ -260,6 +284,8 @@ final class CameraWindow: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         gesture.enabled = false
+        recognizer.enabled = false
+        recording = nil
         tracker.stop()
         tracker.onResults = nil
     }
@@ -268,6 +294,8 @@ final class CameraWindow: NSObject, NSWindowDelegate {
     @objc private func toggleHands(_ s: NSButton) { overlay?.showHands = (s.state == .on) }
     @objc private func toggleBody(_ s: NSButton) { overlay?.showBody = (s.state == .on) }
     @objc private func toggleGesture(_ s: NSButton) { gesture.enabled = (s.state == .on); refreshStatus() }
+    @objc private func toggleRecognition(_ s: NSButton) { recognizer.enabled = (s.state == .on); refreshStatus() }
+    @objc private func openTrainer() { trainer.show() }
     @objc private func cameraChanged(_ s: NSPopUpButton) {
         let i = s.indexOfSelectedItem
         if i >= 0, i < cameraList.count { tracker.use(cameraList[i]) }
@@ -275,7 +303,7 @@ final class CameraWindow: NSObject, NSWindowDelegate {
     @objc private func done() { window?.close() }
 
     private func build() {
-        let W: CGFloat = 900, H: CGFloat = 560, barH: CGFloat = 48
+        let W: CGFloat = 1060, H: CGFloat = 560, barH: CGFloat = 48
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: W, height: H),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = L.t(zh: "丝语 · 摄像头追踪", en: "Dontype · Camera Tracking")
@@ -314,25 +342,32 @@ final class CameraWindow: NSObject, NSWindowDelegate {
         cameraPopup = pop
         content.addSubview(pop)
 
-        // 手势控制鼠标（默认关，开了才接管）
-        let g = NSButton(checkboxWithTitle: L.t(zh: "🖐 手势控制鼠标", en: "🖐 Gesture control"),
+        // 🖐 控制鼠标（食指移光标+捏合）；✋ 手势识别（自定义手势触发动作）；训练…（学新手势）
+        let g = NSButton(checkboxWithTitle: L.t(zh: "🖐 控制鼠标", en: "🖐 Cursor"),
                          target: self, action: #selector(toggleGesture(_:)))
-        g.state = .off; g.frame = NSRect(x: 234, y: 12, width: 150, height: 24)
+        g.state = .off; g.frame = NSRect(x: 234, y: 12, width: 120, height: 24)
         content.addSubview(g)
+        let rec = NSButton(checkboxWithTitle: L.t(zh: "✋ 手势识别", en: "✋ Gestures"),
+                           target: self, action: #selector(toggleRecognition(_:)))
+        rec.state = .off; rec.frame = NSRect(x: 360, y: 12, width: 118, height: 24)
+        content.addSubview(rec)
+        let train = NSButton(title: L.t(zh: "训练…", en: "Train…"), target: self, action: #selector(openTrainer))
+        train.bezelStyle = .rounded; train.frame = NSRect(x: 484, y: 9, width: 70, height: 28)
+        content.addSubview(train)
 
         statusLabel = NSTextField(labelWithString: "…")
         statusLabel.font = .systemFont(ofSize: 12); statusLabel.textColor = .secondaryLabelColor
         statusLabel.lineBreakMode = .byTruncatingTail
-        statusLabel.frame = NSRect(x: 394, y: 14, width: 190, height: 20)
+        statusLabel.frame = NSRect(x: 564, y: 14, width: 180, height: 20)
         content.addSubview(statusLabel)
 
         func chk(_ title: String, _ x: CGFloat, _ w: CGFloat, _ on: Bool, _ sel: Selector) -> NSButton {
             let b = NSButton(checkboxWithTitle: title, target: self, action: sel)
             b.state = on ? .on : .off; b.frame = NSRect(x: x, y: 12, width: w, height: 24); return b
         }
-        content.addSubview(chk(L.t(zh: "脸", en: "Face"), W - 290, 46, false, #selector(toggleFace(_:))))
-        content.addSubview(chk(L.t(zh: "手", en: "Hands"), W - 240, 46, true, #selector(toggleHands(_:))))
-        content.addSubview(chk(L.t(zh: "身体", en: "Body"), W - 190, 64, false, #selector(toggleBody(_:))))
+        content.addSubview(chk(L.t(zh: "脸", en: "Face"), W - 300, 46, false, #selector(toggleFace(_:))))
+        content.addSubview(chk(L.t(zh: "手", en: "Hands"), W - 252, 46, true, #selector(toggleHands(_:))))
+        content.addSubview(chk(L.t(zh: "身体", en: "Body"), W - 204, 64, false, #selector(toggleBody(_:))))
         let doneBtn = NSButton(title: L.t(zh: "完成", en: "Done"), target: self, action: #selector(done))
         doneBtn.bezelStyle = .rounded; doneBtn.keyEquivalent = "\r"
         doneBtn.frame = NSRect(x: W - 96, y: 9, width: 84, height: 28)
