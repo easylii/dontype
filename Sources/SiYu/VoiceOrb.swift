@@ -34,20 +34,20 @@ final class VoiceOrb {
         guard let bp = bubblePanel, let bg = bubbleBG, let lab = bubbleLabel, let orbP = panel else { return }
         lab.stringValue = text
 
-        let padX: CGFloat = 18, padY: CGFloat = 12
-        let maxTextW: CGFloat = 230                                  // 到这就换行
+        let padX: CGFloat = 11, padY: CGFloat = 7
+        let maxTextW: CGFloat = 180                                  // 到这就换行
         let singleW = ceil((text as NSString).size(withAttributes: [.font: lab.font as Any]).width) + 1
-        let textW = max(40, min(singleW, maxTextW))                  // 跟文字一样宽，短就窄
+        let textW = max(28, min(singleW, maxTextW))                 // 跟文字一样宽，短就窄
         let bound = (text as NSString).boundingRect(
             with: NSSize(width: textW, height: 200),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: lab.font as Any])
         let textH = min(ceil(bound.height), lineHeightCap)          // 封顶 3 行
         let pillW = textW + padX * 2
-        let pillH = max(textH + padY * 2, 44)
+        let pillH = max(textH + padY * 2, 28)
 
         // 主体周围留边；左下角留出拖尾小圆的空间
-        let leftPad: CGFloat = 14, rightPad: CGFloat = 16, topPad: CGFloat = 16, tailPad: CGFloat = 30
+        let leftPad: CGFloat = 12, rightPad: CGFloat = 12, topPad: CGFloat = 12, tailPad: CGFloat = 22
         let panelW = leftPad + pillW + rightPad, panelH = tailPad + pillH + topPad
         bp.setContentSize(NSSize(width: panelW, height: panelH))
 
@@ -76,7 +76,7 @@ final class VoiceOrb {
     }
 
     /// 3 行文字的高度上限（按泡泡字号估算）。
-    private var lineHeightCap: CGFloat { ceil((NSFont.systemFont(ofSize: 16, weight: .medium).boundingRectForFont.height) * 3) + 6 }
+    private var lineHeightCap: CGFloat { ceil((NSFont.systemFont(ofSize: 12.5, weight: .medium).boundingRectForFont.height) * 3) + 6 }
 
     private func buildBubble() {
         let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 280, height: 130),
@@ -87,7 +87,7 @@ final class VoiceOrb {
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         let bg = ThoughtBubbleView(frame: NSRect(x: 0, y: 0, width: 280, height: 130))
         let lab = NSTextField(wrappingLabelWithString: "")
-        lab.font = .systemFont(ofSize: 16, weight: .medium)
+        lab.font = .systemFont(ofSize: 12.5, weight: .medium)
         lab.textColor = .white; lab.alignment = .center
         lab.maximumNumberOfLines = 3
         lab.isBezeled = false; lab.isEditable = false; lab.drawsBackground = false
@@ -196,9 +196,9 @@ final class ThoughtBubbleView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard bodyRect.width > 0 else { return }
         NSColor.black.withAlphaComponent(0.6).setFill()
-        NSBezierPath(roundedRect: bodyRect, xRadius: 16, yRadius: 16).fill()
+        NSBezierPath(roundedRect: bodyRect, xRadius: 12, yRadius: 12).fill()
         // 左下角拖尾两小圆（y 向下、x 向左 = 朝球）
-        NSBezierPath(ovalIn: NSRect(x: bodyRect.minX + 6, y: bodyRect.minY - 13, width: 13, height: 13)).fill()
-        NSBezierPath(ovalIn: NSRect(x: bodyRect.minX - 6, y: bodyRect.minY - 26, width: 8,  height: 8)).fill()
+        NSBezierPath(ovalIn: NSRect(x: bodyRect.minX + 3, y: bodyRect.minY - 9,  width: 9, height: 9)).fill()
+        NSBezierPath(ovalIn: NSRect(x: bodyRect.minX - 5, y: bodyRect.minY - 18, width: 5, height: 5)).fill()
     }
 }
