@@ -75,7 +75,7 @@ final class CameraTracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
 
 /// One-Euro 滤波器：手部追踪治抖的标准做法 —— 慢动作强平滑、快动作低延迟，不像固定低通那样要么抖要么拖。
 struct OneEuroFilter {
-    var minCutoff = 0.8, beta = 0.4, dCutoff = 1.0
+    var minCutoff = 0.6, beta = 0.4, dCutoff = 1.0   // minCutoff 越小静止越平滑（丝滑）
     private var xPrev: Double?, dxPrev = 0.0, tPrev = 0.0
     private func alpha(_ cutoff: Double, _ dt: Double) -> Double {
         let tau = 1.0 / (2 * .pi * cutoff); return 1.0 / (1.0 + tau / dt)
@@ -99,7 +99,7 @@ struct OneEuroFilter {
 final class HandGestureController {
     var enabled = false { didSet { if enabled != oldValue { enabled ? begin() : end() } } }
     var onPinch: ((Bool) -> Void)?
-    var gain: CGFloat = (NSScreen.main?.frame.width ?? 1440) * 1.2   // 基础增益（再乘指针加速）
+    var activeMargin: Double = 0.15   // 画面四周留边；中间 (1-2*margin) 的区域线性映射到整个桌面
 
     private var filterX = OneEuroFilter()        // One-Euro 平滑食指位置，治抖
     private var filterY = OneEuroFilter()
@@ -171,15 +171,13 @@ final class HandGestureController {
             }
         } else { pinchStreak = 0 }
 
-        // 移动光标（去抖 + 捏合降速 + 钳到所有屏）
-        var dx = mdx, dy = mdy
-        if abs(dx) < 0.0015 { dx = 0 }
-        if abs(dy) < 0.0015 { dy = 0 }
-        // 指针加速：慢移→低增益(精准不跳)，快挥→高增益(够到对面屏)
-        let accel = min(3.0, 0.4 + 70 * smoothSpeed)
-        let g = gain * CGFloat(accel) * (pinching ? 0.35 : 1.0)
-        cursor.x = min(max(deskBounds.minX, cursor.x - dx * g), deskBounds.maxX - 1)
-        cursor.y = min(max(deskBounds.minY, cursor.y - dy * g), deskBounds.maxY - 1)
+        // 绝对线性映射：手在画面中央子区域的位置 → 整个桌面对应位置（按桌面范围二次换算）。
+        // 前置镜像翻 X、图像上下翻 Y；smoothSpeed 不参与位置，只用于上面的"静止才允许按下"。
+        let inner = 1 - 2 * activeMargin
+        let fx = min(1, max(0, (Double(1 - s.x) - activeMargin) / inner))
+        let fy = min(1, max(0, (Double(1 - s.y) - activeMargin) / inner))
+        cursor.x = deskBounds.minX + CGFloat(fx) * deskBounds.width
+        cursor.y = deskBounds.minY + CGFloat(fy) * deskBounds.height
         post(pinching ? .leftMouseDragged : .mouseMoved)
     }
 
