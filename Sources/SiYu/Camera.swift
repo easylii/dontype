@@ -151,6 +151,7 @@ final class CameraWindow: NSObject, NSWindowDelegate {
 
 /// 关键点叠加层：把 Vision 的归一化坐标经预览层换算成视图坐标，画脸/手/身体的点。
 final class TrackingOverlayView: NSView {
+    override var isFlipped: Bool { true }   // 用左上原点，和 layerPointConverted 的输出对齐（否则上下相反）
     weak var previewLayer: AVCaptureVideoPreviewLayer?
     var showFace = true { didSet { needsDisplay = true } }
     var showHands = true { didSet { needsDisplay = true } }
