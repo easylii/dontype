@@ -17,6 +17,7 @@ final class Dictation: NSObject {
 
     private enum Backend { case whisper, apple }
     private var backend: Backend = .apple
+    private var peakLevel: Float = 0        // 整段录音的最大音量；太低=没人声，跳过转写防 Whisper 幻听
 
     private var engine = AVAudioEngine()   // 每次录音换全新引擎 → 切麦克风设备才会真正生效
     private var tapInstalled = false
@@ -57,6 +58,7 @@ final class Dictation: NSObject {
 
     func start(locale: String, micUID: String = "") throws {
         backend = Whisper.available ? .whisper : .apple
+        peakLevel = 0
 
         let micAuth = AVCaptureDevice.authorizationStatus(for: .audio)
         FileLog.write("开始录音：后端=\(backend == .whisper ? "whisper" : "apple") 麦克风授权=\(micAuth.rawValue)(3=OK)")
@@ -133,7 +135,7 @@ final class Dictation: NSObject {
                 for i in 0..<n { sum += data[i] * data[i] }
                 let rms = sqrt(sum / Float(max(n, 1)))
                 let level = min(1.0, rms * 18)
-                DispatchQueue.main.async { self.onLevel?(level) }
+                DispatchQueue.main.async { self.onLevel?(level); if level > self.peakLevel { self.peakLevel = level } }
             }
         }
         // installTap 遇到坏格式（某些摄像头/采集卡）会抛 NSException 直接 SIGABRT；用异常捕获包住，
@@ -227,7 +229,12 @@ final class Dictation: NSObject {
         switch backend {
         case .whisper:
             audioFile = nil   // 关闭文件句柄
-            Whisper.transcribe(caf: cafPath, completion: completion)
+            // 整段录音没检测到人声 → 跳过转写，避免 Whisper 在静音上幻听（"字幕志愿者…"之类）
+            if peakLevel < 0.10 {
+                FileLog.write("跳过转写：没检测到人声（peak=\(String(format: "%.2f", peakLevel))）")
+                completion(""); return
+            }
+            Whisper.transcribe(caf: cafPath) { raw in completion(Dictation.dropHallucination(raw)) }
         case .apple:
             pending = completion
             request?.endAudio()
@@ -235,6 +242,17 @@ final class Dictation: NSObject {
                 self?.finishApple()
             }
         }
+    }
+
+    /// 兜底：丢掉 Whisper 在静音/噪声上常吐的"字幕组残留"幻听。只对很短的整句 + 命中已知短语才丢，不误杀正常话。
+    static func dropHallucination(_ text: String) -> String {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.count <= 18 else { return text }
+        let phantoms = ["字幕志愿者", "字幕製作", "字幕由", "點點欄目", "点点栏目", "明镜与点点", "明鏡與點點",
+                        "请订阅", "請訂閱", "谢谢观看", "謝謝觀看", "谢谢大家", "下次再見", "下次再见",
+                        "请不吝", "請不吝"]
+        if phantoms.contains(where: { t.contains($0) }) { FileLog.write("丢弃幻听：「\(t)」"); return "" }
+        return text
     }
 
     private func finishApple() {
