@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let gamepad = GameControllerInput() // 蓝牙手柄：A 键听写、摇杆移光标、十字键方向键
     private let remote = RemoteHID()            // Apple TV 遥控器特殊键（id=251）：选择/方向/菜单…
     private let touchpad = MultitouchRemote()   // 遥控器触摸面 → 鼠标（私有 MultitouchSupport，可选）
+    private var touchpadRetryTimer: Timer?      // 遥控器启动时若睡着，触摸面枚举不到 → 定时重试，醒了自动接管
     private let dictation = Dictation()
     private let speaker = Speaker()
     private let hud = HUD()
@@ -187,6 +188,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // 遥控器触摸面当鼠标（私有 MultitouchSupport）——随总开关
         if config.remoteEnabled { touchpad.start(); enableFullKeyboardAccess() }
+        // 启动时遥控器可能没醒（触摸面枚举不到）→ 每 3s 重试，遥控器一醒就自动接管；接管后 guard !running 变空操作
+        touchpadRetryTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+            guard let self, self.config.remoteEnabled, !self.touchpad.running else { return }
+            self.touchpad.start()
+        }
 
         // 朗读选中文字：独立触发键（默认双击 右⌘）—— 双击读、单击暂停/继续、Esc 停
         readHotkey.setTrigger(Trigger.from(config.readKey))
