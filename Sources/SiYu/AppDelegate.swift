@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let remote = RemoteHID()            // Apple TV 遥控器特殊键（id=251）：选择/方向/菜单…
     private let touchpad = MultitouchRemote()   // 遥控器触摸面 → 鼠标（私有 MultitouchSupport，可选）
     private var touchpadRetryTimer: Timer?      // 遥控器启动时若睡着，触摸面枚举不到 → 定时重试，醒了自动接管
+    private var touchpadReattachWork: DispatchWorkItem?  // 遥控器重连后去抖重接触摸面
     private let dictation = Dictation()
     private let speaker = Speaker()
     private let hud = HUD()
@@ -184,6 +185,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.performRemoteAction(code)
         }
         remote.logAll = config.diagnostic   // 诊断时记录遥控器全部报文（查触摸面有没有发坐标）
+        // 遥控器（重）连上 → 去抖后重新接管触摸面：断开重连后旧触摸面句柄失效，必须 stop+start 刷新
+        remote.onAttached = { [weak self] in
+            guard let self, self.config.remoteEnabled else { return }
+            self.touchpadReattachWork?.cancel()
+            let w = DispatchWorkItem { [weak self] in
+                guard let self, self.config.remoteEnabled else { return }
+                self.touchpad.stop(); self.touchpad.start()
+            }
+            self.touchpadReattachWork = w
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: w)
+        }
         remote.start()
 
         // 遥控器触摸面当鼠标（私有 MultitouchSupport）——随总开关

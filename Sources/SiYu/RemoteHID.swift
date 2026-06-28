@@ -12,6 +12,8 @@ final class RemoteHID {
     var onState: ((Set<String>) -> Void)?
     /// 每一条原始报文（任意 report id，不只 251）→ (id, bytes)。设置页诊断/点格子用，主线程。
     var onRawReport: ((Int, [UInt8]) -> Void)?
+    /// 遥控器接口（重）连上时回调（主线程）—— 外部据此重新接管触摸面（断开重连后触摸面句柄会失效）。
+    var onAttached: (() -> Void)?
     /// 设置页打开时置 true：仍回调 onState 点亮，但 AppDelegate 不执行动作（免得校准时误触发）。
     var suppressed = false
     /// 诊断：把遥控器「所有」报文（不只 id=251）都写进日志 —— 用来看触摸面有没有发坐标。
@@ -129,6 +131,7 @@ final class RemoteHID {
             Unmanaged<RemoteHID>.fromOpaque(context).takeUnretainedValue()
                 .onReport(id: Int(reportID), ptr: reportPtr, len: reportLen)
         }, ctx)
+        onAttached?()   // 遥控器（重）连上 → 通知外部重新接管触摸面（触摸板断开重连后会失效）
     }
 
     /// 报文入口：诊断时全记；把每条原始报文抛给 onRawReport（设置页用，看是否还走 id=251）；id=251 正常解码。
