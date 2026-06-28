@@ -653,7 +653,8 @@ final class Onboarding: NSObject {
     }
 
     private func recogLangRow() -> NSView {
-        let titleLabel = NSTextField(labelWithString: L.t(zh: "识别语言", en: "Recognition language"))
+        let titleLabel = NSTextField(labelWithString: L.t(zh: "主要输入语言（识别 + 整理输出，不翻译）",
+                                                          en: "Primary input language (recognize + clean, no translate)"))
         titleLabel.font = .systemFont(ofSize: 13, weight: .medium)
         titleLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
