@@ -360,9 +360,10 @@ enum Cleaner {
     /// Typeless 式智能整理：按识别语言选 prompt，但都要求「保持与原文相同的语言」，
     /// 这样自动检测/混说时也不会被强行翻译。
     static func systemPrompt(for lang: String) -> String {
+        let pin = languagePin(lang)
         switch lang {
         case "en":
-            return """
+            return pin + "\n\n" + """
             You rewrite voice dictation into clean, ready-to-send writing. The input is a raw \
             speech transcript — usually fragmented, out of order, with restarts, self-corrections \
             and filler. First understand what the speaker actually means, then rewrite it as \
@@ -383,8 +384,8 @@ enum Cleaner {
             Output only the rewritten text — no preamble, no quotes, no explanation.
             """
         default:
-            // 中文/日韩/粤语/自动：用中文指令，但明确「保持原文语言」，对非中文输入同样适用
-            return """
+            // 中文/日韩/粤语/自动：用中文指令，置顶硬性「输出语言」指令防止被翻译
+            return pin + "\n\n" + """
             你把语音口述改写成可以直接发送的通顺文字。输入是语音转写原文，通常零碎、语序乱、\
             有重说、自我纠正和口水词。先理解说话人到底想表达什么，再把它改写成完整、连贯、\
             读起来自然的书面句子。
@@ -403,6 +404,18 @@ enum Cleaner {
 
             只输出改写后的正文，不要任何前后缀、引号或解释。
             """
+        }
+    }
+
+    /// 置顶的硬性「输出语言」指令：按主要输入语言钉死，防止整理后端（尤其 Codex）擅自翻译。
+    private static func languagePin(_ lang: String) -> String {
+        switch lang {
+        case "zh":  return "【最重要规则】只能输出简体中文。绝对不要翻译成英文或任何其它语言（中英混排时英文术语原样保留）。"
+        case "yue": return "【最重要规则】只能输出中文。绝对不要翻译成英文或任何其它语言（中英混排时英文术语原样保留）。"
+        case "ja":  return "【最重要】必ず日本語で出力する。絶対に他の言語へ翻訳しない。"
+        case "ko":  return "【가장 중요】반드시 한국어로만 출력. 절대 다른 언어로 번역하지 말 것."
+        case "en":  return "MOST IMPORTANT RULE: Output ONLY in English. Never translate to any other language."
+        default:    return "【最重要 / MOST IMPORTANT】输出语言必须和输入完全一致，绝对不要翻译。Keep the EXACT same language as the input; never translate."
         }
     }
 }
