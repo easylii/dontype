@@ -259,6 +259,9 @@ final class HUD: NSObject, NSWindowDelegate {
         programmaticMove = true
         p.setFrameOrigin(NSPoint(x: x, y: y))
         programmaticMove = false
+        // 每次定位都重新强制置顶层级 + 全屏辅助（防 macOS 把它降级/丢出全屏空间）
+        p.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
     }
 
     /// 当前屏顶部中点（用于把绝对坐标换算成「相对顶部」的偏移）
