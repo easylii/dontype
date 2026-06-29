@@ -309,8 +309,10 @@ final class HUD: NSObject, NSWindowDelegate {
         var pos = CGPoint.zero, size = CGSize.zero
         AXValueGetValue(posRef as! AXValue, .cgPoint, &pos)
         AXValueGetValue(sizeRef as! AXValue, .cgSize, &size)
-        // AX 是顶左原点、Y 向下、全局坐标；换成 Cocoa（底左原点）再找屏幕
-        let primaryH = NSScreen.screens.first?.frame.height ?? 0
+        // AX 是顶左原点、Y 向下、全局坐标；换成 Cocoa（底左原点）再找屏幕。
+        // 关键：主屏 = 全局原点(0,0)那块（screens.first 不一定是主屏），多屏换算才正确
+        let primary = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? NSScreen.main ?? NSScreen.screens.first
+        let primaryH = primary?.frame.height ?? 0
         let center = CGPoint(x: pos.x + size.width / 2, y: primaryH - (pos.y + size.height / 2))
         return NSScreen.screens.first { NSMouseInRect(center, $0.frame, false) }
     }
