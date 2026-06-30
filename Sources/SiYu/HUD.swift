@@ -247,6 +247,10 @@ final class HUD: NSObject, NSWindowDelegate {
     private func position(under anchor: NSRect?) {
         guard let p = panel else { return }
         let screen = activeScreen()
+        if screen != lastPositionedScreen {
+            lastPositionedScreen = screen
+            FileLog.write("药丸定位屏：\(screen.frame) | main=\(NSScreen.main?.frame ?? .zero) 鼠标=\(NSEvent.mouseLocation)")
+        }
         let f = screen.visibleFrame   // 用可见区（菜单栏/刘海下方），避免被刘海或菜单栏遮住
         // 基准 = 当前屏顶部中点（多屏/单屏都贴你正在打字那块屏的最顶）；再叠加用户拖动的偏移
         let baseX = f.midX - p.frame.width / 2
@@ -285,35 +289,59 @@ final class HUD: NSObject, NSWindowDelegate {
         }
     }
 
-    /// 文字将要落到的那一页/屏：优先「键盘焦点窗口」所在屏（=光标处），
-    /// 取不到再退到鼠标所在屏，最后主屏。解决分屏/多屏时胶囊跑到别的屏看不见。
+    private var lastActiveScreen: NSScreen?      // 上次成功识别的屏；检测失败时复用，绝不乱跳
+    private var lastPositionedScreen: NSScreen?  // 仅用于「换屏时记一条日志」，不刷屏
+
+    /// 文字将要落到的那一页/屏：优先「前台 App 最上层窗口」所在屏（=你正在看的那块，
+    /// 全屏 App 时就是它那块）；取不到先复用上次成功的屏 —— 这样 AX 偶尔抽风时不会
+    /// 跳到鼠标所在屏（多屏时鼠标常和全屏 App 不在同一块），才不会「时有时无」；
+    /// 再退鼠标屏，最后主屏。
     private func activeScreen() -> NSScreen {
-        if let s = focusedWindowScreen() { return s }
+        if let s = frontWindowScreen() { lastActiveScreen = s; return s }
+        if let s = lastActiveScreen { return s }
         let mouse = NSEvent.mouseLocation
         if let s = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) { return s }
         return NSScreen.main ?? NSScreen.screens[0]
     }
 
-    /// 用辅助功能 API 拿前台 App 焦点窗口的几何，换算出它在哪块屏
-    private func focusedWindowScreen() -> NSScreen? {
+    /// 前台 App 最上层普通窗口所在屏。先用 CGWindowList（可靠、不依赖会抽风的 AX 焦点查询，
+    /// 拿窗口几何也不需要录屏权限），取不到再退用辅助功能 API 的焦点/主窗口。
+    private func frontWindowScreen() -> NSScreen? {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
-        let axApp = AXUIElementCreateApplication(app.processIdentifier)
-        var winRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &winRef) == .success,
-              let winRef else { return nil }
-        let win = winRef as! AXUIElement
-        var posRef: CFTypeRef?, sizeRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(win, kAXPositionAttribute as CFString, &posRef) == .success,
-              AXUIElementCopyAttributeValue(win, kAXSizeAttribute as CFString, &sizeRef) == .success
-        else { return nil }
-        var pos = CGPoint.zero, size = CGSize.zero
-        AXValueGetValue(posRef as! AXValue, .cgPoint, &pos)
-        AXValueGetValue(sizeRef as! AXValue, .cgSize, &size)
-        // AX 是顶左原点、Y 向下、全局坐标；换成 Cocoa（底左原点）再找屏幕。
-        // 关键：主屏 = 全局原点(0,0)那块（screens.first 不一定是主屏），多屏换算才正确
-        let primary = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? NSScreen.main ?? NSScreen.screens.first
-        let primaryH = primary?.frame.height ?? 0
-        let center = CGPoint(x: pos.x + size.width / 2, y: primaryH - (pos.y + size.height / 2))
+        let pid = app.processIdentifier
+        // 1) CGWindowList：返回是前→后顺序，取该 App 第一个 layer 0 的普通窗口
+        if let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
+            for info in list {
+                guard (info[kCGWindowOwnerPID as String] as? pid_t) == pid,
+                      (info[kCGWindowLayer as String] as? Int) == 0,
+                      let b = info[kCGWindowBounds as String] as? [String: CGFloat],
+                      let x = b["X"], let y = b["Y"], let w = b["Width"], let h = b["Height"],
+                      w > 1, h > 1 else { continue }
+                if let s = screenForGlobalRect(CGRect(x: x, y: y, width: w, height: h)) { return s }
+            }
+        }
+        // 2) 退回 AX：焦点窗口 → 主窗口
+        let axApp = AXUIElementCreateApplication(pid)
+        for attr in [kAXFocusedWindowAttribute, kAXMainWindowAttribute] {
+            var winRef: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(axApp, attr as CFString, &winRef) == .success, let winRef else { continue }
+            let win = winRef as! AXUIElement
+            var posRef: CFTypeRef?, sizeRef: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(win, kAXPositionAttribute as CFString, &posRef) == .success,
+                  AXUIElementCopyAttributeValue(win, kAXSizeAttribute as CFString, &sizeRef) == .success else { continue }
+            var pos = CGPoint.zero, size = CGSize.zero
+            AXValueGetValue(posRef as! AXValue, .cgPoint, &pos)
+            AXValueGetValue(sizeRef as! AXValue, .cgSize, &size)
+            if let s = screenForGlobalRect(CGRect(origin: pos, size: size)) { return s }
+        }
+        return nil
+    }
+
+    /// 顶左原点、Y 向下的全局矩形（AX / CGWindowList 坐标）→ 它中心落在哪块屏（Cocoa 底左原点）。
+    /// 主屏 = 全局原点(0,0)那块（screens.first 不一定是主屏），多屏换算才正确。
+    private func screenForGlobalRect(_ r: CGRect) -> NSScreen? {
+        let primaryH = (NSScreen.screens.first { $0.frame.origin == .zero } ?? NSScreen.main ?? NSScreen.screens.first)?.frame.height ?? 0
+        let center = CGPoint(x: r.midX, y: primaryH - r.midY)
         return NSScreen.screens.first { NSMouseInRect(center, $0.frame, false) }
     }
 
