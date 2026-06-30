@@ -84,6 +84,7 @@ final class HotkeyMonitor {
 
     private var tap: CFMachPort?
     private var thread: Thread?
+    private var watchdog: Timer?
     private var keyHeld = false
     private var sawOther = false
     private var lastTapTime: TimeInterval = 0
@@ -132,6 +133,21 @@ final class HotkeyMonitor {
         t.qualityOfService = .userInteractive
         t.start()
         thread = t
+
+        // 看门狗：CGEventTap 可能被系统「静默」禁用（处理超时、睡眠唤醒、负载尖峰），
+        // 而回调里的重启只有在「回调还在被调用」时才有用 —— 一旦 tap 完全不再投递事件，
+        // 它就永远收不到禁用通知、自我恢复失效 → 表现为「所有键突然全死、只能重启」。
+        // 这里在主 runloop 每秒独立检查一次，发现被禁用就立刻重新启用，保证最多 1s 自动恢复。
+        DispatchQueue.main.async { [weak self] in
+            self?.watchdog?.invalidate()
+            self?.watchdog = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                guard let self, let tap = self.tap else { return }
+                if !CGEvent.tapIsEnabled(tap: tap) {
+                    FileLog.write("⚠️ 事件监听被系统禁用，自动重新启用（\(self.trigger.label)）")
+                    CGEvent.tapEnable(tap: tap, enable: true)
+                }
+            }
+        }
     }
 
     var isActive: Bool { tap != nil }
