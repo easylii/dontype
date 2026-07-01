@@ -18,6 +18,7 @@ final class MultitouchRemote {
 
     private var handle: UnsafeMutableRawPointer?
     private var devices: [MTRef] = []
+    private var deviceList: CFArray?          // 保活 MTDeviceCreateList 返回的数组，元素（设备指针）才不悬空
     private(set) var running = false
 
     // 给 C 回调用的相对移动状态（无捕获 → 必须静态）
@@ -52,19 +53,25 @@ final class MultitouchRemote {
         let registerCB = unsafeBitCast(rg, to: RegisterFn.self)
         let familyID   = unsafeBitCast(fam, to: FamilyFn.self)
 
-        let arr = createList().takeRetainedValue()
+        // ⚠️ 内存：MTDeviceCreateList 的所有权语义在不同 macOS 版本并不一致；用 takeRetainedValue 在
+        // 被反复调用时（旧的每 3s 重试）会「过度释放」→ 定时器回调 autorelease 池 pop 时 objc_release 崩溃
+        // （EXC_BAD_ACCESS）。改用 takeUnretainedValue（绝不过度释放），并把数组存进 deviceList 保活 ——
+        // 只有我们持有数组期间，devices 里的设备指针才不会悬空。
+        let arr = createList().takeUnretainedValue()
+        var found: [MTRef] = []
         for i in 0..<CFArrayGetCount(arr) {
             guard let dev = UnsafeMutableRawPointer(mutating: CFArrayGetValueAtIndex(arr, i)) else { continue }
             var f: Int32 = 0; _ = familyID(dev, &f)
-            FileLog.write("🖐 MT 设备 family=0x\(String(f, radix: 16))")
-            guard f == MultitouchRemote.remoteFamily else { continue }   // 只接管遥控器，跳过触控板
+            guard f == MultitouchRemote.remoteFamily else { continue }   // 只接管遥控器，跳过触控板/其它 MT 设备
             registerCB(dev, MultitouchRemote.contactCB)
             startDev(dev, 0)
-            devices.append(dev)
+            found.append(dev)
         }
+        devices = found
+        deviceList = found.isEmpty ? nil : arr    // 接管了才留住数组保设备指针；没接管就放掉，不留引用
         MultitouchRemote.hasPrev = false
         running = !devices.isEmpty
-        FileLog.write(running ? "🖐 遥控器触摸板已接管（→ 鼠标）" : "🖐 没找到遥控器触摸面（family 0x91）")
+        if running { FileLog.write("🖐 遥控器触摸板已接管（→ 鼠标）") }
     }
 
     func stop() {
@@ -76,6 +83,7 @@ final class MultitouchRemote {
             for d in devices { unreg(d, MultitouchRemote.contactCB); stopDev(d, 0) }
         }
         devices.removeAll()
+        deviceList = nil                          // 放掉保活的数组
         running = false
         MultitouchRemote.hasPrev = false
         FileLog.write("🖐 遥控器触摸板已释放")

@@ -185,26 +185,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.performRemoteAction(code)
         }
         remote.logAll = config.diagnostic   // 诊断时记录遥控器全部报文（查触摸面有没有发坐标）
-        // 遥控器（重）连上 → 去抖后重新接管触摸面：断开重连后旧触摸面句柄失效，必须 stop+start 刷新
+        // 遥控器（重）连上 → 去抖后重新接管触摸面：断开重连后旧触摸面句柄失效，必须刷新
         remote.onAttached = { [weak self] in
             guard let self, self.config.remoteEnabled else { return }
             self.touchpadReattachWork?.cancel()
-            let w = DispatchWorkItem { [weak self] in
-                guard let self, self.config.remoteEnabled else { return }
-                self.touchpad.stop(); self.touchpad.start()
-            }
+            let w = DispatchWorkItem { [weak self] in self?.armTouchpadReattach() }
             self.touchpadReattachWork = w
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: w)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: w)
         }
         remote.start()
 
-        // 遥控器触摸面当鼠标（私有 MultitouchSupport）——随总开关
-        if config.remoteEnabled { touchpad.start(); enableFullKeyboardAccess() }
-        // 启动时遥控器可能没醒（触摸面枚举不到）→ 每 3s 重试，遥控器一醒就自动接管；接管后 guard !running 变空操作
-        touchpadRetryTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
-            guard let self, self.config.remoteEnabled, !self.touchpad.running else { return }
-            self.touchpad.start()
-        }
+        // 遥控器触摸面当鼠标（私有 MultitouchSupport）——随总开关。
+        // 启动时若遥控器已连上，armTouchpadReattach 会短时多试几次接管；没连上就很快停。
+        // ⚠️ 不再无限每 3s 轮询私有框架 —— 那会持续 churn 并偶发过度释放崩溃（EXC_BAD_ACCESS）。
+        // 遥控器之后醒来会触发 remote.onAttached → 再次 armTouchpadReattach，照样能接管。
+        if config.remoteEnabled { enableFullKeyboardAccess(); armTouchpadReattach() }
 
         // 朗读选中文字：独立触发键（默认双击 右⌘）—— 双击读、单击暂停/继续、Esc 停
         readHotkey.setTrigger(Trigger.from(config.readKey))
@@ -431,6 +426,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let arrowSource = CGEventSource(stateID: .hidSystemState)
     /// 合成一次方向键（按下+抬起），发给当前前台 App。
     private func postArrow(_ keycode: CGKeyCode) { postKey(keycode) }
+
+    /// 遥控器连上后，在短时间内多试几次接管触摸面（触摸面 family 0x91 可能比 HID 稍晚就绪），
+    /// 成功接管或试满就停 —— 取代原来「每 3s 无限轮询私有框架」，避免持续 churn 和偶发过度释放崩溃。
+    private func armTouchpadReattach() {
+        guard config.remoteEnabled else { return }
+        touchpadRetryTimer?.invalidate()
+        touchpad.stop()                       // 重连后旧触摸面句柄失效，先释放再重接管
+        var attempts = 0
+        touchpadRetryTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] t in
+            guard let self, self.config.remoteEnabled else { t.invalidate(); return }
+            if self.touchpad.running { t.invalidate(); return }
+            attempts += 1
+            self.touchpad.start()
+            if self.touchpad.running || attempts >= 6 { t.invalidate() }   // 接管成功或 ~12s 内没有就停
+        }
+        touchpadRetryTimer?.fire()            // 立刻先试一次，不等 2s
+    }
 
     private func startRecording() {
         if busy { return }
