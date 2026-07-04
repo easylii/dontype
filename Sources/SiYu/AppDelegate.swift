@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let dictation = Dictation()
     private let speaker = Speaker()
     private let hud = HUD()
+    private let keepAwake = KeepAwake()          // 保持唤醒（合盖/电池也不睡）：pmset disablesleep
     private var config = Config.load()
     private var statusItem: NSStatusItem!
     private var busy = false
@@ -75,6 +76,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         L.set(config.uiLang)
         Whisper.configure(modelID: config.whisperModel, language: config.recognitionLang)
         setupStatusItem()
+
+        // 保持唤醒：状态变化刷新菜单；倒计时显示在菜单栏图标旁；自动关（定时/电池）弹条提示
+        keepAwake.onChange = { [weak self] in self?.rebuildMenu() }
+        keepAwake.onTick = { [weak self] text in
+            guard let self else { return }
+            self.statusItem.button?.title = text ?? ""
+            self.statusItem.button?.imagePosition = (text == nil || text!.isEmpty) ? .imageOnly : .imageLeading
+        }
+        keepAwake.onAutoOff = { [weak self] msg in
+            self?.hud.showResult(msg, pasted: false)
+        }
 
         // 剪贴历史（最多 5 条）：本 app 转写结果 + 监听用户手动复制；变化时刷新菜单
         RecallStore.shared.onChange = { [weak self] in self?.rebuildMenu() }
@@ -233,6 +245,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         Whisper.stopServer()
+        if keepAwake.isOn { keepAwake.stop() }   // 退出前务必关掉 disablesleep，否则系统会永不休眠
     }
 
     // MARK: 录音流程
@@ -600,6 +613,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         camera.target = self
         menu.addItem(camera)
 
+        // 保持唤醒（合盖 / 电池也不睡）：标题带当前状态；倒计时同时显示在菜单栏
+        let kaTitle: String
+        switch keepAwake.mode {
+        case .off:            kaTitle = L.t(zh: "保持唤醒 · 合盖也不睡", en: "Keep awake · lid-closed too")
+        case .indefinite:     kaTitle = L.t(zh: "保持唤醒 · 一直开", en: "Keep awake · on")
+        case .timed(let m, _):                        // 显示设定时长（不显示会走秒的倒计时——那在菜单栏）
+            let dur = m % 60 == 0 ? L.t(zh: "\(m/60) 小时", en: "\(m/60)h") : L.t(zh: "\(m) 分钟", en: "\(m)m")
+            kaTitle = L.t(zh: "保持唤醒 · ", en: "Keep awake · ") + dur
+        }
+        menu.addItem(modeItem(kaTitle,
+                              symbol: keepAwake.isOn ? "cup.and.saucer.fill" : "cup.and.saucer",
+                              build: buildKeepAwakeSubmenu))
+
         menu.addItem(.separator())
 
         // 剪贴历史：顶层平铺，点一下复制回剪贴板（不放二级菜单）
@@ -709,6 +735,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .foregroundColor: NSColor.tertiaryLabelColor,
         ])
         return it
+    }
+
+    /// 保持唤醒子菜单：预设时长 / 一直开 / 关闭；当前项打勾。
+    private func buildKeepAwakeSubmenu(_ m: NSMenu) {
+        m.addItem(hintItem(L.t(zh: "合盖、用电池也保持联网不休眠（电池到 15% 自动关）",
+                               en: "Stay awake & online even lid-closed / on battery (auto-off at 15%)")))
+        m.addItem(.separator())
+        let sel = keepAwake.selectedTag
+        func opt(_ title: String, tag: Int) {
+            let it = NSMenuItem(title: title, action: #selector(setKeepAwake(_:)), keyEquivalent: "")
+            it.target = self; it.tag = tag; it.state = (sel == tag) ? .on : .off
+            m.addItem(it)
+        }
+        opt(L.t(zh: "30 分钟", en: "30 minutes"), tag: 30)
+        opt(L.t(zh: "1 小时", en: "1 hour"), tag: 60)
+        opt(L.t(zh: "2 小时", en: "2 hours"), tag: 120)
+        opt(L.t(zh: "一直开（到电池 15%）", en: "On (until 15% battery)"), tag: 0)
+        m.addItem(.separator())
+        let off = NSMenuItem(title: L.t(zh: "关闭", en: "Off"), action: #selector(setKeepAwake(_:)), keyEquivalent: "")
+        off.target = self; off.tag = -1; off.state = (sel == nil) ? .on : .off
+        m.addItem(off)
+    }
+
+    @objc private func setKeepAwake(_ sender: NSMenuItem) {
+        switch sender.tag {
+        case -1: keepAwake.stop()
+        case 0:  keepAwake.start(minutes: nil)          // 一直开
+        default: keepAwake.start(minutes: sender.tag)   // 30 / 60 / 120 分钟
+        }
+        rebuildMenu()
     }
 
     /// 剪贴历史菜单项（最多 5 条）：每条带来源图标（转写=波形 / 复制=剪贴板）+ 预览，点击复制回剪贴板。
