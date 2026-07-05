@@ -14,6 +14,7 @@ Vibe coding is *talking* to your AI, not typing it all out. Dontype makes your M
 - **5-slot clipboard history.** Every dictation result and every manual copy flows into a 5-item history (deduplicated, source-tagged) — click any to copy it back. In-memory only, sensitive clips skipped.
 - **Works with the Apple TV Remote (gen 2 or 3).** Dictate hands-free from across the room with a Siri Remote: press **TV** to start talking, **TV** again to finish, **OK** to send, **Back ‹ / Esc** to cancel, swipe the **touchpad** to move the cursor, and the **arrows** act like Tab between controls. Set it up in the setup wizard's Remote page (an animated demo shows every step).
 - **Talk to Claude Code, out loud** *(experimental)*. An optional voice assistant holds a walkie-talkie-style spoken conversation with Claude Code — press the remote's **side button**, talk, press again, and it reads the answer back. Online + read-only, opt-in, kept separate from the on-device core.
+- **Hands-free control by camera.** Open **Camera** and it tracks your **face / hands / body** in real time, fully **on-device** (Apple Vision — the video never leaves your Mac). Turn a hand into a mouse — point to move the cursor, **pinch to click and drag** — or **train your own gestures** and map them to click / scroll / Esc / Space.
 - **Keep your Mac awake — even lid-closed on battery.** An Amphetamine-style menu-bar toggle stops the Mac from sleeping so Wi-Fi / a phone hotspot stays up while you step away: pick **30 min / 1 h / 2 h**, or leave it **on until the battery hits 15%**, with a live countdown next to the menu-bar icon.
 
 ## How it works
@@ -114,6 +115,15 @@ Volume, mute and play/pause keep their normal system function. Enabling the remo
 
 > The remote's three input channels each use a different macOS API (media keys via a CGEvent tap, the special keys via IOHIDManager, the touch surface via the private MultitouchSupport framework). That last one means the app isn't App-Store-sandboxable — it's a power-user feature you toggle on the Remote page.
 
+## Camera tracking & hand gestures
+
+Open **Camera** from the menu to track your **face / hands / body** in real time — fully **on-device** via Apple Vision, so the video never leaves your Mac (there's a live mirrored preview; toggle face / hands / body independently). Two hands-free control modes build on it:
+
+- **Hand as mouse** — point with your index finger to glide the cursor and **pinch** to click and drag (absolute, smoothed mapping that spans all your displays). A camera air-trackpad — no touchpad needed.
+- **Train your own gestures** — open the trainer, name a gesture, pick an action (**left / right click, scroll up / down, Esc, Space**), and hold the pose to the camera for ~1 second (record it a few times for accuracy). It learns few-shot on-device (Vision hand landmarks + nearest-neighbor) and fires your action whenever it recognizes the gesture.
+
+Everything runs locally; the camera is opt-in from the menu and needs a one-time Camera permission.
+
 ## Keep awake (stay connected, even lid-closed)
 
 An Amphetamine-style **Keep awake** toggle in the menu bar stops the Mac from sleeping — so Wi-Fi or a phone hotspot stays connected while you step away or shut the lid. Pick **30 min / 1 h / 2 h**, or **On until battery ≤ 15%**; a live **countdown** shows next to the menu-bar icon, and you can turn it off any time. It auto-turns-off when the timer ends, when the battery drops to 15% (on battery), or when you quit the app.
@@ -163,6 +173,8 @@ The AI cleanup backend is auto-selected by priority: `Claude API (fastest) → C
 | `Paster.swift` | clipboard + synthetic Cmd+V |
 | `RemoteHID.swift` | Apple TV Remote special keys (IOHIDManager, HID report id=251) → actions |
 | `Multitouch.swift` | remote touch surface → mouse cursor (private MultitouchSupport, family 0x91) |
+| `Camera.swift` | camera + on-device Vision tracking (face / hands / body), mirrored preview, hand-as-mouse (pinch click / drag) |
+| `Gestures.swift` | custom gesture trainer (few-shot: Vision hand landmarks + k-NN) → actions (click / scroll / Esc / Space) |
 | `KeepAwake.swift` | keep awake: prevent sleep incl. lid-closed on battery (`pmset disablesleep`, one-time sudoers auth), timed / battery auto-off, menu-bar countdown |
 | `RemoteSetup.swift` | Remote setup / demo page (connection-aware, animated SVG walkthrough) |
 | `GameControllerInput.swift` | Bluetooth gamepad input (dictation / cursor / arrows) |
