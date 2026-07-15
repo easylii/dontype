@@ -6,17 +6,26 @@
 # 本脚本运行后会替 App 去掉隔离标记，App 本身就能直接双击打开了。
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
-APP="SiYu.app"
+APP="Dontype.app"
 SRC="$DIR/$APP"
 DST="/Applications/$APP"
 
 echo "▸ 安装 Dontype…"
-[ -d "$SRC" ] || { echo "✗ 找不到 $SRC（请把本脚本和 SiYu.app 放在同一文件夹）"; exit 1; }
+[ -d "$SRC" ] || { echo "✗ 找不到 $SRC（请把本脚本和 Dontype.app 放在同一文件夹）"; exit 1; }
 
-# 关掉正在运行的旧实例，避免覆盖时占用
+# 关掉正在运行的旧实例（含改名前的 SiYu），避免覆盖时占用
+osascript -e 'quit app "Dontype"' >/dev/null 2>&1 || true
 osascript -e 'quit app "SiYu"' >/dev/null 2>&1 || true
+pkill -x Dontype >/dev/null 2>&1 || true
 pkill -x SiYu >/dev/null 2>&1 || true
 sleep 1
+
+# 改名前装过 SiYu.app 的：清掉旧副本，避免 /Applications 里躺两份
+OLD="/Applications/SiYu.app"
+if [ -d "$OLD" ] && grep -q "com.easylii" "$OLD/Contents/Info.plist" 2>/dev/null; then
+  rm -rf "$OLD"
+  echo "▸ 已移除旧版 SiYu.app"
+fi
 
 echo "▸ 拷贝到 /Applications…"
 rm -rf "$DST"

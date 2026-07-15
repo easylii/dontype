@@ -1,5 +1,5 @@
 #!/bin/bash
-# 打分发用 DMG：SiYu.app（内置 whisper 二进制）+ 拖入 Applications 的快捷方式 + 安装说明。
+# 打分发用 DMG：Dontype.app（内置 whisper 二进制）+ 拖入 Applications 的快捷方式 + 安装说明。
 # 1.6GB 模型不进 DMG —— App 首次启动自动下载到 ~/Library/Application Support/SiYu/。
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -10,7 +10,7 @@ DIST="dist-dmg"
 DMG="Dontype.dmg"
 rm -rf "$DIST" "$DMG"
 mkdir "$DIST"
-cp -R SiYu.app "$DIST/"
+cp -R Dontype.app "$DIST/"
 cp install.command "$DIST/"
 chmod +x "$DIST/install.command"
 [ -f PRIVACY.md ] && cp PRIVACY.md "$DIST/"
@@ -27,8 +27,8 @@ Dontype（丝语）安装说明
   （只有这第一次需要右键打开脚本，个人自签名应用，Gatekeeper 会拦首次运行。）
 
 【或 · 手动安装】
-  1. 把 SiYu.app 拖进 Applications 文件夹。
-  2. 首次打开：右键点击 SiYu.app，选「打开」，再点「打开」。
+  1. 把 Dontype.app 拖进 Applications 文件夹。
+  2. 首次打开：右键点击 Dontype.app，选「打开」，再点「打开」。
 
 首次启动：
   · 先弹「隐私政策」，点「我已阅读，同意」后继续。
