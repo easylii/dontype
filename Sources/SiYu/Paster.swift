@@ -6,9 +6,7 @@ import CoreGraphics
 /// 所以 Cmd+V 会落到用户原来所在的输入框。需要「辅助功能」权限。
 enum Paster {
     static func copy(_ text: String) {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(text, forType: .string)
+        Clipboard.write(text)   // 走共享锁，与后台 viaCopy / RecallStore 轮询串行化
     }
 
     static func paste(_ text: String) {

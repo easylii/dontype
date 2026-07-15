@@ -70,23 +70,22 @@ enum TextGrabber {
     // MARK: Cmd+C 兜底（读完还原剪贴板）
 
     private static func viaCopy() -> String? {
-        let pb = NSPasteboard.general
-        let saved = pb.string(forType: .string)   // 备份用户原有剪贴板（仅文本，够用）
-        let before = pb.changeCount
+        let saved = Clipboard.readString()   // 备份用户原有剪贴板（仅文本，够用）
+        let before = Clipboard.changeCount
 
         sendCmdC()
 
-        // 轮询等待剪贴板更新（最多 ~400ms）；在后台线程，sleep 不卡 UI
+        // 轮询等待剪贴板更新（最多 ~400ms）；在后台线程，sleep 不卡 UI。
+        // 每次读都走 Clipboard 的锁（短持锁），不与主线程的 RecallStore 轮询抢内部缓存。
         var grabbed: String?
         let deadline = Date().addingTimeInterval(0.4)
         while Date() < deadline {
-            if pb.changeCount != before { grabbed = pb.string(forType: .string); break }
+            if Clipboard.changeCount != before { grabbed = Clipboard.readString(); break }
             usleep(20_000)
         }
 
         // 还原用户原本的剪贴板
-        pb.clearContents()
-        if let saved { pb.setString(saved, forType: .string) }
+        if let saved { Clipboard.write(saved) } else { Clipboard.clear() }
 
         let t = grabbed?.trimmingCharacters(in: .whitespacesAndNewlines)
         return (t?.isEmpty ?? true) ? nil : t

@@ -22,7 +22,7 @@ final class RecallStore {
     var onChange: (() -> Void)?
 
     // 自己写剪贴板时记录 changeCount，避免把自家写入又当成「手动复制」。
-    private var lastChangeCount = NSPasteboard.general.changeCount
+    private var lastChangeCount = Clipboard.changeCount
     private var timer: Timer?
 
     // 密码管理器等会给剪贴打这些标记，遇到就跳过，不进历史。
@@ -37,12 +37,12 @@ final class RecallStore {
     /// 本 app 产生的结果（转写 / 整理）：加进历史，来源 = dictation。
     func addFromApp(_ text: String) {
         add(text, source: .dictation)
-        lastChangeCount = NSPasteboard.general.changeCount   // 若刚粘贴过，别再当手动复制收一遍
+        lastChangeCount = Clipboard.changeCount   // 若刚粘贴过，别再当手动复制收一遍
     }
 
     /// 开始轮询系统剪贴板：用户手动 copy 的内容进历史，来源 = copied。
     func startMonitoring() {
-        lastChangeCount = NSPasteboard.general.changeCount
+        lastChangeCount = Clipboard.changeCount
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
             self?.poll()
@@ -52,7 +52,7 @@ final class RecallStore {
     /// 点击某条 → 复制回剪贴板并置顶。
     func recall(byText text: String) {
         Paster.copy(text)
-        lastChangeCount = NSPasteboard.general.changeCount
+        lastChangeCount = Clipboard.changeCount
         if let i = entries.firstIndex(where: { $0.text == text }) {
             let e = entries.remove(at: i); entries.insert(e, at: 0)
         }
@@ -62,13 +62,15 @@ final class RecallStore {
     // MARK: 内部
 
     private func poll() {
-        let pb = NSPasteboard.general
-        guard pb.changeCount != lastChangeCount else { return }
-        lastChangeCount = pb.changeCount
-        // 跳过敏感/临时剪贴（密码管理器等）
-        if let types = pb.types, types.contains(where: { skipTypes.contains($0.rawValue) }) { return }
-        guard let s = pb.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !s.isEmpty else { return }
+        let cc = Clipboard.changeCount
+        guard cc != lastChangeCount else { return }
+        lastChangeCount = cc
+        // 类型检查 + 读文本一并在锁内完成（跳过密码管理器等敏感剪贴），避免与后台 viaCopy 抢内部缓存
+        let text: String? = Clipboard.withLock { pb in
+            if let types = pb.types, types.contains(where: { self.skipTypes.contains($0.rawValue) }) { return nil }
+            return pb.string(forType: .string)
+        }
+        guard let s = text?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return }
         add(s, source: .copied)
     }
 
