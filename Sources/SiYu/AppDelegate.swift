@@ -73,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     ])
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        CrashTracker.install()   // 第一时间装上退出追踪：哨兵 + 信号标记 + 上次崩溃摘要
         L.set(config.uiLang)
         Whisper.configure(modelID: config.whisperModel, language: config.recognitionLang)
         setupStatusItem()
@@ -246,6 +247,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         Whisper.stopServer()
         if keepAwake.isOn { keepAwake.stop() }   // 退出前务必关掉 disablesleep，否则系统会永不休眠
+        CrashTracker.markCleanExit()             // 删哨兵 = 正常退出；残留哨兵 = 下次启动报「异常退出」
+        FileLog.write("👋 正常退出")
     }
 
     // MARK: 录音流程
