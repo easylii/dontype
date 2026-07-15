@@ -66,7 +66,9 @@ Vibe coding 是**对着 AI 说**、而不是把一切都打出来。Dontype 让�
 
 ## 安装
 
-**分发安装（推荐）**：`./make-dmg.sh` 打出 `Dontype.dmg`（内含 `install.command` / `PRIVACY.md` / 安装说明）。装机时右键点 DMG 里的 **install.command** →「打开」，脚本自动拷到 `/Applications`、去隔离（之后直接双击）、写默认配置并启动。
+**[⬇ 下载最新版](https://github.com/easylii/dontype/releases/latest)** —— 拿到 `Dontype.dmg`，打开它，右键点 **install.command** →「打开」（个人自签名应用，仅这一次要过 Gatekeeper）；脚本自动拷到 `/Applications`、去隔离（之后直接双击）、写默认配置并启动。
+
+**或自己打包**：`./make-dmg.sh` 同样能打出 `Dontype.dmg`（内含 `install.command` / `PRIVACY.md` / 安装说明）。
 
 **首次启动 = 分页设置向导**：Welcome → **隐私政策（必须同意才能继续）** → 权限 → 模型 → 热键 → 朗读 → AI → 完成。之后菜单栏「设置」打开**单窗口设置面板**（不再走分页流程）。
 
@@ -74,11 +76,11 @@ Vibe coding 是**对着 AI 说**、而不是把一切都打出来。Dontype 让�
 
 ```bash
 cd ~/Documents/SiYu
-./build-app.sh          # 编译 + 打包 + 签名 → SiYu.app
-open SiYu.app
+./build-app.sh          # 编译 + 打包 + 签名 → Dontype.app
+open Dontype.app
 ```
 
-> 注：app bundle 内部仍叫 `SiYu.app`，但 Finder / 权限 / 菜单显示的品牌名是 **Dontype**（英文系统）/ **丝语**（中文系统），靠 `Info.plist` + `Resources/*.lproj` 本地化。
+> 注：Finder / 权限 / 菜单显示的品牌名是 **Dontype**（英文系统）/ **丝语**（中文系统），靠 `Info.plist` + `Resources/*.lproj` 本地化。
 > 签名证书在 `.cert/`（**不在仓库里**，需单独备份）—— 固定证书保证「辅助功能」等授权跨重编不失效。
 
 启动后菜单栏出现**气泡 logo**，录音时变实心红、整理时变实心橙。

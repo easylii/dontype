@@ -66,7 +66,9 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ## Install
 
-**Distributed install (recommended)**: `./make-dmg.sh` builds `Dontype.dmg` (bundling `install.command` / `PRIVACY.md` / install notes). To install, right-click **install.command** inside the DMG → "Open"; the script copies to `/Applications`, strips quarantine (double-click works afterward), writes a default config, and launches.
+**[⬇ Download the latest release](https://github.com/easylii/dontype/releases/latest)** — grab `Dontype.dmg`, open it, right-click **install.command** → "Open" (one-time Gatekeeper step for a self-signed app); the script copies to `/Applications`, strips quarantine (double-click works afterward), writes a default config, and launches.
+
+**Or build the DMG yourself**: `./make-dmg.sh` builds `Dontype.dmg` (bundling `install.command` / `PRIVACY.md` / install notes) the same way.
 
 **First launch = paginated setup wizard**: Welcome → **Privacy policy (must agree to continue)** → Permissions → Model → Hotkey → Read-aloud → AI → Done. Afterward, "Settings" in the menu bar opens a **single-window settings panel** (no longer the paginated flow).
 
@@ -74,11 +76,11 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ```bash
 cd ~/Documents/SiYu
-./build-app.sh          # build + bundle + sign → SiYu.app
-open SiYu.app
+./build-app.sh          # build + bundle + sign → Dontype.app
+open Dontype.app
 ```
 
-> Note: the app bundle is still named `SiYu.app` internally, but Finder / permissions / menus show the brand **Dontype** (English systems) / **丝语** (Chinese systems), via `Info.plist` + `Resources/*.lproj` localization.
+> Note: Finder / permissions / menus show the brand **Dontype** (English systems) / **丝语** (Chinese systems), via `Info.plist` + `Resources/*.lproj` localization.
 > The signing certificate lives in `.cert/` (**not in the repo** — back it up separately). A fixed cert keeps Accessibility and other TCC grants valid across rebuilds.
 
 After launch a **bubble logo** appears in the menu bar; it turns solid red while recording, solid orange while cleaning up.

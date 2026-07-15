@@ -66,7 +66,9 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ## Instalación
 
-**Instalación distribuida (recomendada)**: `./make-dmg.sh` genera `Dontype.dmg` (que incluye `install.command` / `PRIVACY.md` / notas de instalación). Para instalar, haz clic derecho en **install.command** dentro del DMG → "Abrir"; el script copia a `/Applications`, elimina la cuarentena (después funciona con doble clic), escribe una configuración por defecto y se inicia.
+**[⬇ Descarga la última versión](https://github.com/easylii/dontype/releases/latest)** — consigue `Dontype.dmg`, ábrelo, haz clic derecho en **install.command** → "Abrir" (paso único de Gatekeeper por ser una app autofirmada); el script copia a `/Applications`, elimina la cuarentena (después funciona con doble clic), escribe una configuración por defecto y se inicia.
+
+**O compila el DMG tú mismo**: `./make-dmg.sh` genera `Dontype.dmg` de la misma manera (incluye `install.command` / `PRIVACY.md` / notas de instalación).
 
 **Primer arranque = asistente de configuración paginado**: Bienvenida → **Política de privacidad (hay que aceptar para continuar)** → Permisos → Modelo → Atajo → Lectura en voz alta → IA → Listo. Después, "Ajustes" en la barra de menús abre un **panel de ajustes de una sola ventana** (ya no el flujo paginado).
 
@@ -74,11 +76,11 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ```bash
 cd ~/Documents/SiYu
-./build-app.sh          # build + bundle + sign → SiYu.app
-open SiYu.app
+./build-app.sh          # build + bundle + sign → Dontype.app
+open Dontype.app
 ```
 
-> Nota: el paquete de la app sigue llamándose `SiYu.app` internamente, pero Finder / permisos / menús muestran la marca **Dontype** (sistemas en inglés) / **丝语** (sistemas en chino), mediante la localización de `Info.plist` + `Resources/*.lproj`.
+> Nota: Finder / permisos / menús muestran la marca **Dontype** (sistemas en inglés) / **丝语** (sistemas en chino), mediante la localización de `Info.plist` + `Resources/*.lproj`.
 > El certificado de firma reside en `.cert/` (**no está en el repositorio** — haz una copia de seguridad por separado). Un certificado fijo mantiene válidas la Accesibilidad y otras concesiones de TCC entre recompilaciones.
 
 Tras el arranque aparece un **logo de burbuja** en la barra de menús; se vuelve rojo sólido mientras graba y naranja sólido mientras limpia.

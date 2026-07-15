@@ -66,7 +66,9 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ## 설치
 
-**배포용 설치(권장)**: `./make-dmg.sh`는 `Dontype.dmg`를 빌드합니다(`install.command` / `PRIVACY.md` / 설치 안내를 번들로 포함). 설치하려면 DMG 안의 **install.command**를 우클릭 → "열기"; 스크립트가 `/Applications`로 복사하고, 격리(quarantine)를 제거하며(이후에는 더블클릭으로 실행 가능), 기본 설정을 작성한 뒤 실행합니다.
+**[⬇ 최신 릴리스 다운로드](https://github.com/easylii/dontype/releases/latest)** —— `Dontype.dmg`를 받아 열고, **install.command**를 우클릭 → "열기"(개인 자체 서명 앱이라 처음 한 번만 Gatekeeper 확인이 필요합니다); 스크립트가 `/Applications`로 복사하고, 격리(quarantine)를 제거하며(이후에는 더블클릭으로 실행 가능), 기본 설정을 작성한 뒤 실행합니다.
+
+**또는 직접 빌드**: `./make-dmg.sh`를 실행하면 같은 방식으로 `Dontype.dmg`를 빌드합니다(`install.command` / `PRIVACY.md` / 설치 안내를 번들로 포함).
 
 **첫 실행 = 페이지 단위 설정 마법사**: 환영 → **프라이버시 정책(계속하려면 반드시 동의)** → 권한 → 모델 → 단축키 → 소리 내어 읽기 → AI → 완료. 그 이후로는 메뉴 막대의 "설정"이 **단일 창 설정 패널**을 엽니다(더 이상 페이지 단위 흐름이 아닙니다).
 
@@ -74,11 +76,11 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ```bash
 cd ~/Documents/SiYu
-./build-app.sh          # build + bundle + sign → SiYu.app
-open SiYu.app
+./build-app.sh          # build + bundle + sign → Dontype.app
+open Dontype.app
 ```
 
-> 참고: 앱 번들은 내부적으로 여전히 `SiYu.app`이라는 이름이지만, Finder / 권한 / 메뉴에는 `Info.plist` + `Resources/*.lproj` 현지화를 통해 브랜드 **Dontype**(영어 시스템) / **丝语**(중국어 시스템)로 표시됩니다.
+> 참고: Finder / 권한 / 메뉴에는 `Info.plist` + `Resources/*.lproj` 현지화를 통해 브랜드 **Dontype**(영어 시스템) / **丝语**(중국어 시스템)로 표시됩니다.
 > 서명 인증서는 `.cert/`에 있습니다(**저장소에 포함되지 않음** — 별도로 백업하세요). 고정된 인증서는 재빌드 전반에 걸쳐 손쉬운 사용(Accessibility) 및 기타 TCC 권한을 유효하게 유지해 줍니다.
 
 실행 후 메뉴 막대에 **물방울(bubble) 로고**가 나타납니다; 녹음 중에는 빨간색으로, 정리 중에는 주황색으로 채워집니다.

@@ -66,7 +66,9 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ## インストール
 
-**配布インストール（推奨）**：`./make-dmg.sh` が `Dontype.dmg` をビルドします（`install.command` / `PRIVACY.md` / インストール手順を同梱）。インストールするには、DMG内の **install.command** を右クリック → 「開く」を選びます。スクリプトが `/Applications` にコピーし、検疫属性を取り除き（以降はダブルクリックで動作）、デフォルト設定を書き込んで起動します。
+**[⬇ 最新リリースをダウンロード](https://github.com/easylii/dontype/releases/latest)** —— `Dontype.dmg` を入手して開き、**install.command** を右クリック → 「開く」（個人の自己署名アプリのため、初回のみ Gatekeeper の確認が必要です）。スクリプトが `/Applications` にコピーし、検疫属性を取り除き（以降はダブルクリックで動作）、デフォルト設定を書き込んで起動します。
+
+**または自分でビルド**：`./make-dmg.sh` を実行すると同じ手順で `Dontype.dmg` をビルドできます（`install.command` / `PRIVACY.md` / インストール手順を同梱）。
 
 **初回起動 ＝ ページ送り式のセットアップウィザード**：ようこそ → **プライバシーポリシー（続行するには同意が必須）** → 権限 → モデル → ホットキー → 読み上げ → AI → 完了。その後はメニューバーの「設定」から **単一ウィンドウの設定パネル** が開きます（もうページ送り式のフローではありません）。
 
@@ -74,11 +76,11 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ```bash
 cd ~/Documents/SiYu
-./build-app.sh          # build + bundle + sign → SiYu.app
-open SiYu.app
+./build-app.sh          # build + bundle + sign → Dontype.app
+open Dontype.app
 ```
 
-> 注：アプリバンドルは内部的には依然として `SiYu.app` という名前ですが、Finder / 権限 / メニューには `Info.plist` ＋ `Resources/*.lproj` のローカライズによってブランド名 **Dontype**（英語環境）/ **丝语**（中国語環境）が表示されます。
+> 注：Finder / 権限 / メニューには `Info.plist` ＋ `Resources/*.lproj` のローカライズによってブランド名 **Dontype**（英語環境）/ **丝语**（中国語環境）が表示されます。
 > 署名証明書は `.cert/` に置かれています（**リポジトリには含まれません** — 別途バックアップしてください）。固定の証明書を使うことで、再ビルドをまたいでもアクセシビリティなどのTCC許可が有効に保たれます。
 
 起動すると、メニューバーに **バブルのロゴ** が表示されます。録音中は赤一色に、整文中はオレンジ一色になります。

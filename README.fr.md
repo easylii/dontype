@@ -66,7 +66,9 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ## Installation
 
-**Installation distribuée (recommandée)** : `./make-dmg.sh` génère `Dontype.dmg` (intégrant `install.command` / `PRIVACY.md` / les notes d'installation). Pour installer, faites un clic droit sur **install.command** à l'intérieur du DMG → « Ouvrir » ; le script copie vers `/Applications`, retire la quarantaine (le double-clic fonctionne ensuite), écrit une configuration par défaut et lance l'application.
+**[⬇ Téléchargez la dernière version](https://github.com/easylii/dontype/releases/latest)** — récupérez `Dontype.dmg`, ouvrez-le, faites un clic droit sur **install.command** → « Ouvrir » (étape Gatekeeper unique pour une app auto-signée) ; le script copie vers `/Applications`, retire la quarantaine (le double-clic fonctionne ensuite), écrit une configuration par défaut et lance l'application.
+
+**Ou compilez le DMG vous-même** : `./make-dmg.sh` génère `Dontype.dmg` de la même façon (intégrant `install.command` / `PRIVACY.md` / les notes d'installation).
 
 **Premier lancement = assistant de configuration paginé** : Bienvenue → **Politique de confidentialité (acceptation obligatoire pour continuer)** → Autorisations → Modèle → Raccourci → Lecture à voix haute → IA → Terminé. Ensuite, « Réglages » dans la barre de menus ouvre un **panneau de réglages à fenêtre unique** (et non plus le flux paginé).
 
@@ -74,11 +76,11 @@ Double-tap Control to record (tap to stop / Esc = stop without paste)
 
 ```bash
 cd ~/Documents/SiYu
-./build-app.sh          # build + bundle + sign → SiYu.app
-open SiYu.app
+./build-app.sh          # build + bundle + sign → Dontype.app
+open Dontype.app
 ```
 
-> Remarque : le bundle de l'application porte toujours le nom `SiYu.app` en interne, mais le Finder / les autorisations / les menus affichent la marque **Dontype** (systèmes anglophones) / **丝语** (systèmes chinois), via la localisation `Info.plist` + `Resources/*.lproj`.
+> Remarque : le Finder / les autorisations / les menus affichent la marque **Dontype** (systèmes anglophones) / **丝语** (systèmes chinois), via la localisation `Info.plist` + `Resources/*.lproj`.
 > Le certificat de signature se trouve dans `.cert/` (**pas dans le dépôt** — sauvegardez-le séparément). Un certificat fixe maintient valides l'Accessibilité et les autres autorisations TCC d'une recompilation à l'autre.
 
 Après le lancement, un **logo en bulle** apparaît dans la barre de menus ; il devient rouge plein pendant l'enregistrement, orange plein pendant le nettoyage.
